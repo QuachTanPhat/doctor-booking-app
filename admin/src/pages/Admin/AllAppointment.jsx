@@ -7,7 +7,7 @@ import { assets } from '../../assets/assets'
 
 const AllAppointment = () => {
   const { aToken, appointments, getAllAppointments, cancelAppointment } = useContext(AdminContext);
-  const {caculateAge, slotDateFormat, currency} = useContext(AppContext)
+  const {calculateAge, slotDateFormat, currency} = useContext(AppContext)
 
   useEffect(() => {
     if (aToken) {
@@ -35,7 +35,7 @@ const AllAppointment = () => {
             <div className="flex items-center gap-2">
               <img className="w-8 rounded-full" src={item.userData.image} alt="" /> <p>{item.userData.name}</p>
             </div>
-            <p className="max-sm:hidden">{caculateAge(item.userData.dob)}</p>
+            <p className="max-sm:hidden">{calculateAge(item.userData.dob)}</p>
             <p>{slotDateFormat(item.slotDate)}, {item.slotTime} </p>
             <div className="flex items-center gap-2">
               <img className="w-8 rounded-full bg-gray-200" src={item.docData.image} alt="" /> <p>{item.docData.name}</p>

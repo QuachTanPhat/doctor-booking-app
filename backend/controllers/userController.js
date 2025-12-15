@@ -116,7 +116,7 @@ const updateProfile = async (req, res) => {
 //API to book appointment
 const bookAppointment = async (req,res) => {
     try {
-        const {userId, docId, slotDate, slotTime} = req.body
+        const {userId, docId, slotDate, slotTime, paymentMethod} = req.body
 
         const docData = await doctorModel.findById(docId).select('-password')
 
@@ -151,6 +151,7 @@ const bookAppointment = async (req,res) => {
             amount: docData.fees,
             slotTime,
             slotDate,
+            paymentMethod: paymentMethod || 'CASH',
             date: Date.now()
         }
 
@@ -199,7 +200,9 @@ const cancelAppointment = async (req, res) => {
 
         let slots_booked = doctorData.slots_booked
 
-        slots_booked[slotDate] = slots_booked[slotDate].filter(e => e !== slotTime)
+        if (slots_booked[slotDate]) {
+            slots_booked[slotDate] = slots_booked[slotDate].filter(e => e !== slotTime)
+        }
 
         await doctorModel.findByIdAndUpdate(docId, {slots_booked})
 

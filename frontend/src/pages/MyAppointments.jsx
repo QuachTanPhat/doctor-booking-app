@@ -1,118 +1,146 @@
-import React, { useContext, useState, useEffect } from 'react'
-import { AppContext } from '../context/AppContext'
-import axios from 'axios'
-import { toast } from 'react-toastify'
+import React, { useContext, useState, useEffect } from "react";
+import { AppContext } from "../context/AppContext";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 const MyAppointments = () => {
+  const { backendUrl, token, getDoctorsData } = useContext(AppContext);
+  const [appointments, setAppointments] = useState([]);
 
-  const { backendUrl, token, getDoctorsData } = useContext(AppContext)
-  const [appointments, setAppointments] = useState([])
-  
-  const [paymentOrderId, setPaymentOrderId] = useState(null)
-  const [paymentOrderData, setPaymentOrderData] = useState(null)
-  const [timeLeft, setTimeLeft] = useState(0) 
+  const [paymentOrderId, setPaymentOrderId] = useState(null);
+  const [paymentOrderData, setPaymentOrderData] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(0);
 
-  const months = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "July", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  const months = [
+    "",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "July",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   const SEPAY_ACCOUNT = import.meta.env.VITE_SEPAY_ACCOUNT;
   const SEPAY_BANK = import.meta.env.VITE_SEPAY_BANK;
 
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${minutes < 10 ? '0' : ''}${minutes}:${secs < 10 ? '0' : ''}${secs}`;
-  }
+    return `${minutes < 10 ? "0" : ""}${minutes}:${secs < 10 ? "0" : ""
+      }${secs}`;
+  };
 
   const slotDateFormat = (slotDate) => {
-    const dateArray = slotDate.split('_')
-    return dateArray[0] + " " + months[Number(dateArray[1])] + " " + dateArray[2]
-  }
+    const dateArray = slotDate.split("_");
+    return (
+      dateArray[0] + " " + months[Number(dateArray[1])] + " " + dateArray[2]
+    );
+  };
 
   const getUserAppointments = async () => {
     try {
-      const { data } = await axios.get(backendUrl + '/api/user/appointment', { headers: { token } })
+      const { data } = await axios.get(backendUrl + "/api/user/appointment", {
+        headers: { token },
+      });
       if (data.success) {
-        setAppointments((data.appointment || []).slice().reverse())
+        setAppointments((data.appointment || []).slice().reverse());
       }
     } catch (error) {
-      console.log(error)
-      toast.error(error.message)
+      console.log(error);
+      toast.error(error.message);
     }
-  }
+  };
 
   const cancelAppointment = async (appointmentId) => {
     try {
-      const { data } = await axios.post(backendUrl + '/api/user/cancel-appointment', { appointmentId }, { headers: { token } })
+      const { data } = await axios.post(
+        backendUrl + "/api/user/cancel-appointment",
+        { appointmentId },
+        { headers: { token } }
+      );
       if (data.success) {
-        toast.success(data.message)
-        getUserAppointments()
-        getDoctorsData()
+        toast.success(data.message);
+        getUserAppointments();
+        getDoctorsData();
       } else {
-        toast.error(data.message)
+        toast.error(data.message);
       }
     } catch (error) {
-      console.log(error)
-      toast.error(error.message)
+      console.log(error);
+      toast.error(error.message);
     }
-  }
+  };
 
   const handlePayClick = (item) => {
     const savedSession = localStorage.getItem(`payment_session_${item._id}`);
-    
+
     let expireTime;
     const now = Date.now();
 
     if (savedSession) {
-        const sessionData = JSON.parse(savedSession);
-        if (sessionData.expireTime > now) {
-            expireTime = sessionData.expireTime
-        } else {
-            expireTime = now + 300 * 1000; 
-            localStorage.setItem(`payment_session_${item._id}`, JSON.stringify({ expireTime }))
-        }
+      const sessionData = JSON.parse(savedSession);
+      if (sessionData.expireTime > now) {
+        expireTime = sessionData.expireTime;
+      } else {
+        expireTime = now + 300 * 1000;
+        localStorage.setItem(
+          `payment_session_${item._id}`,
+          JSON.stringify({ expireTime })
+        );
+      }
     } else {
-        expireTime = now + 300 * 1000; 
-        localStorage.setItem(`payment_session_${item._id}`, JSON.stringify({ expireTime }))
+      expireTime = now + 300 * 1000;
+      localStorage.setItem(
+        `payment_session_${item._id}`,
+        JSON.stringify({ expireTime })
+      );
     }
 
     setPaymentOrderId(item._id);
     setPaymentOrderData(item);
     setTimeLeft(Math.floor((expireTime - now) / 1000));
-    localStorage.setItem('current_active_payment_id', item._id);
+    localStorage.setItem("current_active_payment_id", item._id);
 
-    window.scrollTo(0, 0); 
-  }
+    window.scrollTo(0, 0);
+  };
 
   const closePaymentPopup = () => {
     setPaymentOrderId(null);
     setPaymentOrderData(null);
-    localStorage.removeItem('current_active_payment_id'); 
-  }
+    localStorage.removeItem("current_active_payment_id");
+  };
 
   useEffect(() => {
     if (appointments.length > 0) {
-        const activeId = localStorage.getItem('current_active_payment_id');
-        if (activeId) {
-           
-            const item = appointments.find(app => app._id === activeId);
-            const savedSession = localStorage.getItem(`payment_session_${activeId}`);
-            
-            if (item && !item.payment && !item.cancelled && savedSession) {
-                const { expireTime } = JSON.parse(savedSession);
-                const now = Date.now();
-                
-                if (expireTime > now) {
-                    setPaymentOrderId(activeId);
-                    setPaymentOrderData(item);
-                    setTimeLeft(Math.floor((expireTime - now) / 1000));
-                } else {
-                    localStorage.removeItem('current_active_payment_id');
-                    localStorage.removeItem(`payment_session_${activeId}`);
-                }
-            }
+      const activeId = localStorage.getItem("current_active_payment_id");
+      if (activeId) {
+        const item = appointments.find((app) => app._id === activeId);
+        const savedSession = localStorage.getItem(
+          `payment_session_${activeId}`
+        );
+
+        if (item && !item.payment && !item.cancelled && savedSession) {
+          const { expireTime } = JSON.parse(savedSession);
+          const now = Date.now();
+
+          if (expireTime > now) {
+            setPaymentOrderId(activeId);
+            setPaymentOrderData(item);
+            setTimeLeft(Math.floor((expireTime - now) / 1000));
+          } else {
+            localStorage.removeItem("current_active_payment_id");
+            localStorage.removeItem(`payment_session_${activeId}`);
+          }
         }
+      }
     }
   }, [appointments]);
-
 
   useEffect(() => {
     let intervalId;
@@ -122,19 +150,18 @@ const MyAppointments = () => {
       intervalId = setInterval(async () => {
         try {
           const { data } = await axios.post(
-            backendUrl + '/api/user/check-payment-status',
+            backendUrl + "/api/user/check-payment-status",
             { appointmentId: paymentOrderId },
             { headers: { token } }
           );
 
           if (data.success && data.paid) {
-            
             clearInterval(intervalId);
             clearInterval(timerId);
-            
-            localStorage.removeItem('current_active_payment_id');
+
+            localStorage.removeItem("current_active_payment_id");
             localStorage.removeItem(`payment_session_${paymentOrderId}`);
-            
+
             setPaymentOrderId(null);
             setPaymentOrderData(null);
             toast.success("Thanh toán thành công!");
@@ -146,28 +173,28 @@ const MyAppointments = () => {
       }, 3000);
 
       timerId = setInterval(() => {
-        const savedSession = localStorage.getItem(`payment_session_${paymentOrderId}`);
+        const savedSession = localStorage.getItem(
+          `payment_session_${paymentOrderId}`
+        );
         if (savedSession) {
-            const { expireTime } = JSON.parse(savedSession);
-            const secondsLeft = Math.floor((expireTime - Date.now()) / 1000);
+          const { expireTime } = JSON.parse(savedSession);
+          const secondsLeft = Math.floor((expireTime - Date.now()) / 1000);
 
-            if (secondsLeft <= 0) {
-               
-                clearInterval(intervalId);
-                clearInterval(timerId);
-                
-                localStorage.removeItem('current_active_payment_id');
-                localStorage.removeItem(`payment_session_${paymentOrderId}`);
-                
-                setPaymentOrderId(null);
-                setPaymentOrderData(null);
-                toast.error("Giao dịch đã hết hạn!");
-            } else {
-                setTimeLeft(secondsLeft);
-            }
+          if (secondsLeft <= 0) {
+            clearInterval(intervalId);
+            clearInterval(timerId);
+
+            localStorage.removeItem("current_active_payment_id");
+            localStorage.removeItem(`payment_session_${paymentOrderId}`);
+
+            setPaymentOrderId(null);
+            setPaymentOrderData(null);
+            toast.error("Giao dịch đã hết hạn!");
+          } else {
+            setTimeLeft(secondsLeft);
+          }
         }
       }, 1000);
-
     }
 
     return () => {
@@ -176,131 +203,185 @@ const MyAppointments = () => {
     };
   }, [paymentOrderId, backendUrl, token]);
 
-
   useEffect(() => {
     if (token) {
-      getUserAppointments()
+      getUserAppointments();
     }
-  }, [token])
+  }, [token]);
 
   return (
     <div>
-      <p className='pb-3 mt-12 font-medium text-zinc-700 border-b'>My Appointment</p>
+      <p className="pb-3 mt-12 font-medium text-zinc-700 border-b">
+        My Appointment
+      </p>
       {paymentOrderId && paymentOrderData && (
-        <div className='fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn'>
-           <div className='bg-white rounded-xl shadow-2xl max-w-4xl w-full p-6 md:p-8 relative flex flex-col md:flex-row gap-8'>
-             
-              <button 
-                onClick={closePaymentPopup}
-                className='absolute top-4 right-4 text-gray-400 hover:text-red-500 text-3xl leading-none transition-colors'
-              >
-                &times;
-              </button>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-6 md:p-8 relative flex flex-col md:flex-row gap-8">
+            <button
+              onClick={closePaymentPopup}
+              className="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-3xl leading-none transition-colors"
+            >
+              &times;
+            </button>
 
-              <div className='flex-1 border-r border-gray-100 pr-0 md:pr-8 pt-2'>
-                <h2 className='text-2xl font-bold text-gray-800 mb-2'>Thanh toán đơn hàng</h2>
-                <p className='text-sm text-gray-500 mb-6'>Vui lòng thanh toán trước khi thời gian kết thúc</p>
-                
-                <div className='space-y-6'>
-                    <div className='flex items-center gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100'>
-                        <img className='w-16 h-16 object-cover rounded-full bg-white border shadow-sm' src={paymentOrderData.docData.image} alt="" />
-                        <div>
-                            <p className='text-lg font-bold text-blue-900'>{paymentOrderData.docData.name}</p>
-                            <p className='text-sm text-blue-600 font-medium'>{paymentOrderData.docData.speciality}</p>
-                        </div>
-                    </div>
-                    <div className='bg-gray-50 p-4 rounded-xl space-y-3'>
-                        <div className='flex justify-between text-sm'>
-                          <span className='text-gray-500'>Ngày khám</span>
-                          <span className='font-medium text-gray-800'>{slotDateFormat(paymentOrderData.slotDate)}</span>
-                        </div>
-                        <div className='flex justify-between text-sm'>
-                          <span className='text-gray-500'>Giờ khám</span>
-                          <span className='font-medium text-gray-800'>{paymentOrderData.slotTime}</span>
-                        </div>
-                        <div className='border-t pt-3 flex justify-between items-center'>
-                          <span className='text-gray-600 font-medium'>Tổng cộng</span>
-                          <span className='text-2xl font-bold text-blue-600'>
-                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(paymentOrderData.amount)}
-                          </span>
-                        </div>
-                    </div>
+            <div className="flex-1 border-r border-gray-100 pr-0 md:pr-8 pt-2">
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                Thanh toán đơn hàng
+              </h2>
+              <p className="text-sm text-gray-500 mb-6">
+                Vui lòng thanh toán trước khi thời gian kết thúc
+              </p>
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                  <img
+                    className="w-16 h-16 object-cover rounded-full bg-white border shadow-sm"
+                    src={paymentOrderData.docData.image}
+                    alt=""
+                  />
+                  <div>
+                    <p className="text-lg font-bold text-blue-900">
+                      {paymentOrderData.docData.name}
+                    </p>
+                    <p className="text-sm text-blue-600 font-medium">
+                      {paymentOrderData.docData.speciality}
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Ngày khám</span>
+                    <span className="font-medium text-gray-800">
+                      {slotDateFormat(paymentOrderData.slotDate)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Giờ khám</span>
+                    <span className="font-medium text-gray-800">
+                      {paymentOrderData.slotTime}
+                    </span>
+                  </div>
+                  <div className="border-t pt-3 flex justify-between items-center">
+                    <span className="text-gray-600 font-medium">Tổng cộng</span>
+                    <span className="text-2xl font-bold text-blue-600">
+                      {new Intl.NumberFormat("vi-VN", {
+                        style: "currency",
+                        currency: "VND",
+                      }).format(paymentOrderData.amount)}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className='flex-1 flex flex-col items-center justify-center'>
-                  <div className='bg-white p-3 rounded-xl shadow-lg border border-gray-200 mb-6'>
-                      <img 
-                          className='w-64 h-64 object-contain'
-                          src={`https://qr.sepay.vn/img?acc=${SEPAY_ACCOUNT}&bank=${SEPAY_BANK}&amount=${paymentOrderData.amount}&des=${paymentOrderData._id}`}
-                          alt="SePay QR"
-                      />
-                  </div>
-                  <div className='text-center space-y-1'>
-                     <p className='text-xs font-semibold text-gray-400 uppercase tracking-wide'>Giao dịch hết hạn sau</p>
-                     <div className={`text-4xl font-mono font-bold tracking-widest ${timeLeft < 60 ? 'text-red-600 animate-pulse' : 'text-gray-800'}`}>
-                        {formatTime(timeLeft)}
-                     </div>
-                  </div>
-
-                  <div className='mt-6 flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-4 py-2 rounded-full'>
-                      <span className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></span>
-                      <span>Đang chờ xác nhận thanh toán...</span>
-                  </div>
+            </div>
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <div className="bg-white p-3 rounded-xl shadow-lg border border-gray-200 mb-6">
+                <img
+                  className="w-64 h-64 object-contain"
+                  src={`https://qr.sepay.vn/img?acc=${SEPAY_ACCOUNT}&bank=${SEPAY_BANK}&amount=${paymentOrderData.amount}&des=${paymentOrderData._id}`}
+                  alt="SePay QR"
+                />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Giao dịch hết hạn sau
+                </p>
+                <div
+                  className={`text-4xl font-mono font-bold tracking-widest ${timeLeft < 60
+                      ? "text-red-600 animate-pulse"
+                      : "text-gray-800"
+                    }`}
+                >
+                  {formatTime(timeLeft)}
+                </div>
               </div>
 
-           </div>
+              <div className="mt-6 flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-4 py-2 rounded-full">
+                <span className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></span>
+                <span>Đang chờ xác nhận thanh toán...</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       <div>
         {appointments.map((item, index) => (
-          <div className='grid grid-cols-[1fr_2fr] gap-4 sm:flex sm:gap-6 py-2 border-b' key={index}>
+          <div
+            className="grid grid-cols-[1fr_2fr] gap-4 sm:flex sm:gap-6 py-2 border-b"
+            key={index}
+          >
             <div>
-              <img className='w-32 bg-indigo-50' src={item.docData.image} alt="" />
+              <img
+                className="w-32 bg-indigo-50"
+                src={item.docData.image}
+                alt=""
+              />
             </div>
-            <div className='flex-1 text-sm text-zinc-600'>
-              <p className='text-neutral-800 font-semibold'>{item.docData.name}</p>
+            <div className="flex-1 text-sm text-zinc-600">
+              <p className="text-neutral-800 font-semibold">
+                {item.docData.name}
+              </p>
               <p>{item.docData.speciality}</p>
-              <p className='text-zinc-700 font-medium mt-1'>Address:</p>
-              <p className='text-xs'>{item.docData.address.line1}</p>
-              <p className='text-xs'>{item.docData.address.line2}</p>
-              <p className='text-xs mt-1'><span className='text-sm text-neutral-700 font-medium'>Date & Time:</span> {slotDateFormat(item.slotDate)} | {item.slotTime}</p>
+              <p className="text-zinc-700 font-medium mt-1">Address:</p>
+              <p className="text-xs">{item.docData.address.line1}</p>
+              <p className="text-xs">{item.docData.address.line2}</p>
+              <p className="text-xs mt-1">
+                <span className="text-sm text-neutral-700 font-medium">
+                  Date & Time:
+                </span>{" "}
+                {slotDateFormat(item.slotDate)} | {item.slotTime}
+              </p>
             </div>
-            
-            <div className='flex flex-col gap-2 justify-end'>
-              
-              {!item.cancelled && !item.payment && (
-                  <button 
-                    onClick={() => handlePayClick(item)}
-                    className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border rounded hover:bg-primary hover:text-white transition-all duration-300'
-                  >
-                    Pay Online
-                  </button>
+
+            <div className="flex flex-col gap-2 justify-end">
+
+              {!item.cancelled && !item.isApproved && !item.payment && (
+                <button className="text-sm text-stone-500 sm:min-w-48 py-2 border rounded hover:bg-gray-100 transition-all">
+                  Waiting for Doctor approval...
+                </button>
+              )}
+
+
+              {!item.cancelled && item.isApproved && item.paymentMethod === 'CASH' && (
+                <button className='text-sm sm:min-w-48 py-2 border rounded bg-green-50 text-green-700 cursor-default'>
+                  Confirmed (Pay at Clinic)
+                </button>
+              )}
+
+              {!item.cancelled && item.isApproved && item.paymentMethod === 'ONLINE' && !item.payment && (
+                <button
+                  onClick={() => handlePayClick(item)} 
+                  className="text-sm text-stone-500 text-center sm:min-w-48 py-2 border rounded hover:bg-primary hover:text-white transition-all duration-300"
+                >
+                  Pay Online
+                </button>
               )}
 
               {item.payment && !item.cancelled && (
-                 <button className='sm:min-w-48 py-2 border border-green-500 rounded text-green-500 bg-green-50 cursor-default'>
-                    Paid
-                 </button>
+                <button className="sm:min-w-48 py-2 border border-green-500 rounded text-green-500 bg-green-50 cursor-default">
+                  Paid
+                </button>
               )}
 
-              {!item.cancelled && !item.payment && (
-                <button onClick={() => cancelAppointment(item._id)} className='text-sm text-stone-500 text-center sm:min-w-48 py-2 border rounded hover:bg-red-600 hover:text-white transition-all duration-300'>
+              {!item.cancelled && !item.payment && !item.isCompleted && (
+                <button
+                  onClick={() => cancelAppointment(item._id)}
+                  className="text-sm text-stone-500 text-center sm:min-w-48 py-2 border rounded hover:bg-red-600 hover:text-white transition-all duration-300"
+                >
                   Cancel appointment
                 </button>
               )}
 
               {item.cancelled && (
-                <button className='sm:min-w-48 py-2 border border-red-500 rounded text-red-500'>
+                <button className="sm:min-w-48 py-2 border border-red-500 rounded text-red-500 cursor-default">
                   Appointment cancelled
                 </button>
               )}
-
             </div>
           </div>
         ))}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default MyAppointments
+export default MyAppointments;
