@@ -2,12 +2,17 @@ import doctorModel from "../models/doctorModel.js"
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import appointmentModel from '../models/appointmentModel.js'
+
 const changeAvailability = async (req, res) => {
     try {
 
         const { docId } = req.body
+        const io = req.app.get('socketio');
         const docData = await doctorModel.findById(docId)
         await doctorModel.findByIdAndUpdate(docId, { available: !docData.available })
+        if (req.io) {
+            req.io.emit('update-availability', { docId });
+        }
         res.json({ success: true, message: 'Availability Changed' })
 
     } catch (error) {
@@ -57,7 +62,9 @@ const appointmentsDoctor = async (req, res) => {
     try {
         const { docId } = req.body
         const appointments = await appointmentModel.find({ docId })
-
+        if(req.io) {
+                req.io.emit('update-appointments');
+            }
         res.json({ success: true, appointments })
     } catch (error) {
         console.log(error)
@@ -72,6 +79,9 @@ const appointmentComplete = async (req, res) => {
 
         if (appointmentData && appointmentData.docId == docId) {
             await appointmentModel.findByIdAndUpdate(appointmentId, { isCompleted: true })
+            if(req.io) {
+                req.io.emit('update-appointments');
+            }
             return res.json({ success: true, message: 'Appointment Completed' })
         }
         else {
@@ -99,6 +109,9 @@ const appointmentCancel = async (req, res) => {
                 slots_booked[slotDate] = slots_booked[slotDate].filter(e => e !== slotTime)
             }
             await doctorModel.findByIdAndUpdate(docId, { slots_booked })
+            if(req.io) {
+                req.io.emit('update-appointments');
+            }
             return res.json({ success: true, message: 'Appointment Cancelled' })
         }
         else {
@@ -117,6 +130,9 @@ const appointmentApprove = async (req, res) => {
         if (appointmentData && appointmentData.docId === docId) {
             // Cập nhật isApproved thành true
             await appointmentModel.findByIdAndUpdate(appointmentId, { isApproved: true })
+            if(req.io) {
+                req.io.emit('update-appointments');
+            }
             return res.json({ success: true, message: 'Appointment Approved' })
         } else {
             return res.json({ success: false, message: 'Approval Failed' })
@@ -133,29 +149,54 @@ const doctorDashboard = async (req, res) => {
         const appointments = await appointmentModel.find({ docId })
 
         let earnings = 0
+        let patients = []
 
+        // 1. Xử lý thống kê cơ bản
         appointments.map((item) => {
             if (item.isCompleted || item.payment) {
                 earnings += item.amount
             }
-        })
-
-        let patients = []
-
-        appointments.map((item) => {
             if (!patients.includes(item.userId)) {
                 patients.push(item.userId)
             }
         })
 
+        // 2. Xử lý dữ liệu biểu đồ (Graph Data) - Giống bên Admin
+        const dailyStats = {};
+        
+        // Sắp xếp lịch hẹn theo ngày
+        const sortedAppointments = appointments.sort((a, b) => {
+             const dateA = a.slotDate.split('_').reverse().join('');
+             const dateB = b.slotDate.split('_').reverse().join('');
+             return dateA.localeCompare(dateB);
+        });
+
+        sortedAppointments.forEach(appt => {
+            // Chỉ đếm các lịch chưa hủy
+            if (!appt.cancelled) {
+                const dateParts = appt.slotDate.split('_');
+                const shortDate = `${dateParts[0]}/${dateParts[1]}`; // DD/MM
+
+                if (!dailyStats[shortDate]) {
+                    dailyStats[shortDate] = { date: shortDate, count: 0 };
+                }
+                dailyStats[shortDate].count += 1;
+            }
+        });
+
+        // Lấy dữ liệu của 14 ngày gần nhất có lịch
+        const graphData = Object.values(dailyStats).slice(-14);
+
         const dashData = {
             earnings,
             appointments: appointments.length,
             patients: patients.length,
-            latestAppointments: appointments.reverse().slice(0, 5)
+            latestAppointments: appointments.reverse().slice(0, 5),
+            graphData: graphData // <--- TRẢ VỀ DỮ LIỆU BIỂU ĐỒ
         }
 
         res.json({ success: true, dashData })
+
     } catch (error) {
         console.log(error)
         res.json({ success: false, message: error.message })
@@ -178,6 +219,9 @@ const updateDoctorProfile = async (req, res) => {
         const { docId, fees, address, available } = req.body
         await doctorModel.findByIdAndUpdate(docId, { fees, address, available })
 
+        if(req.io) {
+                req.io.emit('doctor-update');
+            }
         res.json({ success: true, message: 'Profile Updated' })
 
     } catch (error) {
@@ -185,6 +229,7 @@ const updateDoctorProfile = async (req, res) => {
         res.json({ success: false, message: error.message })
     }
 }
+
 export {
     changeAvailability,
     doctorList, loginDoctor,

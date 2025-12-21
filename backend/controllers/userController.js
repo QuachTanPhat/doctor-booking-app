@@ -5,7 +5,11 @@ import jwt from 'jsonwebtoken';
 import { v2 as cloudinary } from 'cloudinary'
 import doctorModel from '../models/doctorModel.js'
 import appointmentModel from '../models/appointmentModel.js';
+import specialityModel from '../models/specialityModel.js'
+import nodemailer from 'nodemailer'
+import { OAuth2Client } from "google-auth-library"
 // API to resgiter user
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const resgiterUser = async (req, res) => {
     try {
         const { name, email, password } = req.body;
@@ -55,7 +59,9 @@ const loginUser = async (req, res) => {
         if (!user) {
             return res.json({ success: false, message: "User does not exist" })
         }
-
+        if (user.isBlocked) {
+            return res.json({ success: false, message: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin!" });
+        }
         const isMatch = await bcrypt.compare(password, user.password)
 
         if (isMatch) {
@@ -106,6 +112,18 @@ const updateProfile = async (req, res) => {
 
             await userModel.findByIdAndUpdate(userId,{image:imageUrl})
         }
+        const updatedUserData = await userModel.findById(userId)
+
+        // 4. Tìm tất cả lịch hẹn của user này và cập nhật lại field 'userData'
+        // Để ảnh và tên mới hiển thị ngay lập tức trên lịch sử cũ
+        await appointmentModel.updateMany(
+            { userId: userId }, 
+            { userData: updatedUserData }
+        )
+
+        if (req.io) {
+            req.io.emit('update-appointments');
+        }
         res.json({success:true, message:"Profile Updated"})
 
     } catch (error) {
@@ -152,13 +170,17 @@ const bookAppointment = async (req,res) => {
             slotTime,
             slotDate,
             paymentMethod: paymentMethod || 'CASH',
-            date: Date.now()
+            date: Date.now(),
+            isApproved: false
         }
 
         const newAppointment = new appointmentModel(appointmentData)
         await newAppointment.save()
 
         await doctorModel.findByIdAndUpdate(docId, { slots_booked })
+        if (req.io) {
+            req.io.emit('update-appointments');
+        }
         res.json({ success: true, message: 'Appointment Booked' })
 
     } catch (error) {
@@ -205,7 +227,9 @@ const cancelAppointment = async (req, res) => {
         }
 
         await doctorModel.findByIdAndUpdate(docId, {slots_booked})
-
+        if (req.io) {
+            req.io.emit('update-appointments');
+        }
         res.json({success:true, message:'Appointment Cancelled'})
     } catch (error) {
         console.log(error)
@@ -227,7 +251,15 @@ const checkPaymentStatus = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 }
-
+const getAllSpecialities = async (req, res) => {
+    try {
+        const specialities = await specialityModel.find({});
+        res.json({ success: true, specialities });
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+}
 const verifyPaymentWebhook = async (req, res) => {
     try {
         const sepayToken = req.headers['authorization'];
@@ -262,6 +294,9 @@ const verifyPaymentWebhook = async (req, res) => {
                     payment: true 
                 });
                 console.log("=> CẬP NHẬT THÀNH CÔNG!");
+                if (req.io) {
+                    req.io.emit('update-appointments'); // Báo cho client load lại
+                }
                 return res.json({ success: true, message: "Success" });
             } else {
                 console.log("=> Lỗi: Tiền không đủ.");
@@ -277,4 +312,83 @@ const verifyPaymentWebhook = async (req, res) => {
         return res.json({ success: false, message: error.message });
     }
 }
-export { resgiterUser, loginUser, getProfile, updateProfile, bookAppointment, listAppointment, cancelAppointment, checkPaymentStatus, verifyPaymentWebhook };
+const sendContactEmail = async (req, res) => {
+    try {
+        const { name, email, phone, subject, message } = req.body;
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.MAIL_USER, 
+                pass: process.env.MAIL_PASS  
+            }
+        });
+        const mailOptions = {
+            from: process.env.MAIL_USER,
+            to: process.env.RECEIVER_EMAIL, 
+            subject: `[LIÊN HỆ MỚI] - ${subject} từ ${name}`,
+            html: `
+                <h3>Bạn có tin nhắn liên hệ mới từ Website Prescripto</h3>
+                <p><strong>Họ tên:</strong> ${name}</p>
+                <p><strong>Email người gửi:</strong> ${email}</p>
+                <p><strong>Số điện thoại:</strong> ${phone}</p>
+                <p><strong>Chủ đề:</strong> ${subject}</p>
+                <p><strong>Nội dung:</strong></p>
+                <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px;">
+                    ${message}
+                </div>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        res.json({ success: true, message: "Email sent successfully" });
+
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+}
+const googleLogin = async (req, res) => {
+    try {
+        const { googleToken } = req.body;
+
+        // 1. Xác thực token với Google để đảm bảo không bị giả mạo
+        const ticket = await client.verifyIdToken({
+            idToken: googleToken,
+            audience: process.env.GOOGLE_CLIENT_ID, 
+        });
+
+        const { name, email, picture } = ticket.getPayload();
+
+        // 2. Kiểm tra xem user đã tồn tại chưa
+        let user = await userModel.findOne({ email });
+
+        if (user) {
+            if (user.isBlocked) {
+                return res.json({ success: false, message: "Tài khoản Google này đã bị khóa!" });
+            }
+            // Nếu có rồi -> Tạo token đăng nhập
+            const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+            res.json({ success: true, token });
+        } else {
+            // Nếu chưa có -> Tạo user mới (Mật khẩu để ngẫu nhiên hoặc rỗng vì họ dùng Google)
+            const newUser = new userModel({
+                name,
+                email,
+                image: picture, // Lưu ảnh avatar từ Google
+                password: Date.now().toString(), // Mật khẩu ngẫu nhiên để không bị lỗi validate
+            });
+
+            const user = await newUser.save();
+            const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+            res.json({ success: true, token });
+        }
+
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+}
+export { resgiterUser, loginUser, getProfile, updateProfile, bookAppointment,
+     listAppointment, cancelAppointment, getAllSpecialities, checkPaymentStatus, verifyPaymentWebhook, sendContactEmail, googleLogin
+     };

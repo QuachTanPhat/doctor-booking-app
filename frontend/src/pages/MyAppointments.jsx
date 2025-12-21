@@ -4,8 +4,8 @@ import axios from "axios";
 import { toast } from "react-toastify";
 
 const MyAppointments = () => {
-  const { backendUrl, token, getDoctorsData } = useContext(AppContext);
-  const [appointments, setAppointments] = useState([]);
+  const { backendUrl, token, getDoctorsData, appointments, getUserAppointments } = useContext(AppContext);
+  
 
   const [paymentOrderId, setPaymentOrderId] = useState(null);
   const [paymentOrderData, setPaymentOrderData] = useState(null);
@@ -13,18 +13,18 @@ const MyAppointments = () => {
 
   const months = [
     "",
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "July",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "Tháng 1",
+    "Tháng 2",
+    "Tháng 3",
+    "Tháng 4",
+    "Tháng 5",
+    "Tháng 6",
+    "Tháng 7",
+    "Tháng 8",
+    "Tháng 9",
+    "Tháng 10",
+    "Tháng 11",
+    "Tháng 12",
   ];
   const SEPAY_ACCOUNT = import.meta.env.VITE_SEPAY_ACCOUNT;
   const SEPAY_BANK = import.meta.env.VITE_SEPAY_BANK;
@@ -39,23 +39,11 @@ const MyAppointments = () => {
   const slotDateFormat = (slotDate) => {
     const dateArray = slotDate.split("_");
     return (
-      dateArray[0] + " " + months[Number(dateArray[1])] + " " + dateArray[2]
+      dateArray[0] + " " + months[Number(dateArray[1])] + ", " + dateArray[2]
     );
   };
 
-  const getUserAppointments = async () => {
-    try {
-      const { data } = await axios.get(backendUrl + "/api/user/appointment", {
-        headers: { token },
-      });
-      if (data.success) {
-        setAppointments((data.appointment || []).slice().reverse());
-      }
-    } catch (error) {
-      console.log(error);
-      toast.error(error.message);
-    }
-  };
+  
 
   const cancelAppointment = async (appointmentId) => {
     try {
@@ -212,7 +200,7 @@ const MyAppointments = () => {
   return (
     <div>
       <p className="pb-3 mt-12 font-medium text-zinc-700 border-b">
-        My Appointment
+        Lịch hẹn của tôi
       </p>
       {paymentOrderId && paymentOrderData && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
@@ -321,12 +309,12 @@ const MyAppointments = () => {
                 {item.docData.name}
               </p>
               <p>{item.docData.speciality}</p>
-              <p className="text-zinc-700 font-medium mt-1">Address:</p>
+              <p className="text-zinc-700 font-medium mt-1">Địa chỉ:</p>
               <p className="text-xs">{item.docData.address.line1}</p>
               <p className="text-xs">{item.docData.address.line2}</p>
               <p className="text-xs mt-1">
                 <span className="text-sm text-neutral-700 font-medium">
-                  Date & Time:
+                  Thời gian:
                 </span>{" "}
                 {slotDateFormat(item.slotDate)} | {item.slotTime}
               </p>
@@ -334,46 +322,50 @@ const MyAppointments = () => {
 
             <div className="flex flex-col gap-2 justify-end">
 
-              {!item.cancelled && !item.isApproved && !item.payment && (
+              {!item.cancelled && !item.isApproved && !item.payment &&  !item.isCompleted &&(
                 <button className="text-sm text-stone-500 sm:min-w-48 py-2 border rounded hover:bg-gray-100 transition-all">
-                  Waiting for Doctor approval...
+                  Chờ xác nhận...
                 </button>
               )}
 
 
-              {!item.cancelled && item.isApproved && item.paymentMethod === 'CASH' && (
+              {!item.cancelled && item.isApproved && item.paymentMethod === 'CASH' && !item.isCompleted && (
                 <button className='text-sm sm:min-w-48 py-2 border rounded bg-green-50 text-green-700 cursor-default'>
-                  Confirmed (Pay at Clinic)
+                  Đã xác nhận (Tại quầy)
                 </button>
               )}
 
-              {!item.cancelled && item.isApproved && item.paymentMethod === 'ONLINE' && !item.payment && (
+              {!item.cancelled && item.isApproved && item.paymentMethod === 'ONLINE' && !item.payment && !item.isCompleted && (
                 <button
-                  onClick={() => handlePayClick(item)} 
+                  onClick={() => handlePayClick(item)}
                   className="text-sm text-stone-500 text-center sm:min-w-48 py-2 border rounded hover:bg-primary hover:text-white transition-all duration-300"
                 >
-                  Pay Online
+                  Thanh toán Online
                 </button>
               )}
 
-              {item.payment && !item.cancelled && (
+              {item.payment && !item.cancelled &&  !item.isCompleted &&(
                 <button className="sm:min-w-48 py-2 border border-green-500 rounded text-green-500 bg-green-50 cursor-default">
-                  Paid
+                  Đã thanh toán
                 </button>
               )}
-
+              {item.isCompleted && !item.cancelled && (
+                 <button className="sm:min-w-48 py-2 border border-blue-500 rounded text-blue-500 bg-blue-50 cursor-default">
+                   Đã hoàn thành
+                 </button>
+              )}
               {!item.cancelled && !item.payment && !item.isCompleted && (
                 <button
                   onClick={() => cancelAppointment(item._id)}
                   className="text-sm text-stone-500 text-center sm:min-w-48 py-2 border rounded hover:bg-red-600 hover:text-white transition-all duration-300"
                 >
-                  Cancel appointment
+                  Hủy lịch hẹn
                 </button>
               )}
 
               {item.cancelled && (
                 <button className="sm:min-w-48 py-2 border border-red-500 rounded text-red-500 cursor-default">
-                  Appointment cancelled
+                  Đã hủy
                 </button>
               )}
             </div>

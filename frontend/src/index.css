@@ -4,7 +4,11 @@
 @tailwind utilities;
 
 *{
-    font-family: Outfit;
+    font-family: Outfit, sans-serif;
+}
+/* 3. QUAN TRỌNG: Ép các thẻ Input/Button phải nhận font (Mặc định nó hay bị trờ về Arial/Times) */
+input, button, textarea, select {
+  font-family: 'Outfit', sans-serif !important;
 }
 .active hr{
     @apply block

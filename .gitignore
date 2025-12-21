@@ -5,7 +5,10 @@ node_modules/
 # Bỏ qua file môi trường (CHỨA MẬT KHẨU -> TUYỆT ĐỐI KHÔNG PUSH)
 .env
 */.env
-
+venv/
+python_backend/venv/
+__pycache__/
+*.pyc
 # Bỏ qua file rác hệ thống
 .DS_Store
 dist/

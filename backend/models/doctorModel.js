@@ -14,9 +14,9 @@ const doctorSchema = new mongoose.Schema(
         fees:{type:Number, required:true},
         address:{type:Object, required:true},
         date:{type:Number, required:true},
-        slots_booked:{type:Object, default:{}}
-
-    },{minimize:false,timestamps:true }
+        slots_booked:{type:Object, default:{}},
+        slots_scheduled: { type: Object, default: {} }
+    },{minimize:false, timestamps:true }
 )
 const doctorModel = mongoose.models.doctor || mongoose.model('doctor', doctorSchema)
 

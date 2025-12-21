@@ -57,34 +57,32 @@ export const assets = {
     stripe_logo,
     razorpay_logo
 }
-
 export const specialityData = [
     {
-        speciality: 'General physician',
+        speciality: 'Bác sĩ đa khoa', 
         image: General_physician
     },
     {
-        speciality: 'Gynecologist',
+        speciality: 'Sản phụ khoa', 
         image: Gynecologist
     },
     {
-        speciality: 'Dermatologist',
+        speciality: 'Da liễu', 
         image: Dermatologist
     },
     {
-        speciality: 'Pediatricians',
+        speciality: 'Nhi khoa', 
         image: Pediatricians
     },
     {
-        speciality: 'Neurologist',
+        speciality: 'Thần kinh', 
         image: Neurologist
     },
     {
-        speciality: 'Gastroenterologist',
+        speciality: 'Tiêu hóa', 
         image: Gastroenterologist
     },
 ]
-
 export const doctors = [
     {
         _id: 'doc1',

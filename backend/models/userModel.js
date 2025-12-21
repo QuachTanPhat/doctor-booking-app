@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema(
         gender:{type:String, default:"Not Selected"},
         dob:{type:String, default:"Not Selected"},
         phone:{type:String, default:"0386972871"},
-        
+        isBlocked: { type: Boolean, default: false }
     },{minimize:false,timestamps:true }
 )
 const userModel = mongoose.models.user || mongoose.model('user', userSchema)
