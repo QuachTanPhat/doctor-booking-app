@@ -16,7 +16,9 @@ import DoctorDashboard from './pages/Doctor/DoctorDashboard.jsx';
 import DoctorAppointments from './pages/Doctor/DoctorAppointments.jsx';
 import DoctorProfile from './pages/Doctor/DoctorProfile.jsx';
 import DoctorSchedule from './pages/Admin/DoctorSchedule.jsx';
+import DoctorMySchedule from './pages/Doctor/DoctorMySchedule';
 import AllUsers from './pages/Admin/AllUsers';
+import FaqList from './pages/Admin/FaqList';
 const App = () => {
   const {aToken} = useContext(AdminContext)
   const {dToken} = useContext(DoctorContext)
@@ -34,12 +36,14 @@ const App = () => {
           <Route path='/speciality-list' element={<SpecialityList/>}/>
           <Route path='/doctors-list' element={<DoctorsList/>}/>
           <Route path='/doctor-schedule' element={<DoctorSchedule/>}/>
+          <Route path='/faq-list' element={<FaqList />} />
           {/* --- THÊM DÒNG NÀY ĐỂ HIỆN TRANG QUẢN LÝ NGƯỜI DÙNG --- */}
           <Route path='/all-users' element={<AllUsers />} />
           {/* Doctor Route */}
           <Route path='/doctor-dashboard' element={<DoctorDashboard/>}/>
           <Route path='/doctor-appointments' element={<DoctorAppointments/>}/>
           <Route path='/doctor-profile' element={<DoctorProfile/>}/>
+          <Route path='/doctor-my-schedule' element={<DoctorMySchedule />} />
         </Routes>
       </div>
     </div>

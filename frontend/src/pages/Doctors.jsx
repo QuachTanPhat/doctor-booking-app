@@ -11,7 +11,11 @@ const Doctor = () => {
 
   const applyFilter = () => {
     if (speciality) {
-      setFilterDoc(doctors.filter(doc => doc.speciality === speciality))
+      // Cũng nên áp dụng normalize ở đây để lọc bác sĩ cho chuẩn
+      setFilterDoc(doctors.filter(doc => 
+        doc.speciality === speciality || 
+        doc.speciality.normalize('NFC') === speciality.normalize('NFC')
+      ))
     } else {
       setFilterDoc(doctors)
     }
@@ -24,23 +28,36 @@ const Doctor = () => {
   return (
     <div>
       <p className='text-gray-600'>Tìm kiếm và đặt lịch với các bác sĩ chuyên khoa hàng đầu.</p>
-      
+
       <div className='flex flex-col sm:flex-row items-start gap-5 mt-5'>
         <button className={`py-1 px-3 border rounded text-sm transition-all sm:hidden ${showFilters ? 'bg-primary text-white' : ''}`} onClick={() => setShowFilters(prev => !prev)}>
             Bộ lọc
         </button>
+        
         <div className={`flex flex-col gap-4 text-sm text-gray-600 ${showFilters ? 'flex' : 'hidden sm:flex'} `}>
-          {specialities.map((item, index) => (
-            <p 
-              key={index}
-              onClick={() => speciality === item.name ? navigate('/doctors') : navigate(`/doctors/${item.name}`)}
-              className={`w-[94vw] sm:w-auto pl-3 py-1.5 pr-16 border border-gray-300 rounded transition-all cursor-pointer whitespace-nowrap
-              ${speciality === item.name ? "bg-indigo-100 text-black font-medium" : "hover:bg-gray-50"}`}
-            >
-              {item.name}
-            </p>
-          ))}
+          {specialities.map((item, index) => {
+             // --- 1. SỬA CÚ PHÁP: Dùng dấu { } để mở block code ---
+             const isSelected = speciality && (
+               speciality === item.name ||
+               speciality.normalize('NFC') === item.name.normalize('NFC') ||
+               speciality.trim() === item.name.trim()
+             );
+             
+             // --- 2. THÊM TỪ KHÓA return ---
+             return (
+               <p 
+                 key={index}
+                 // --- 3. SỬA LOGIC: Dùng biến isSelected thay cho so sánh cũ ---
+                 onClick={() => isSelected ? navigate('/doctors') : navigate(`/doctors/${item.name}`)}
+                 className={`w-[94vw] sm:w-auto pl-3 py-1.5 pr-16 border border-gray-300 rounded transition-all cursor-pointer whitespace-nowrap
+                 ${isSelected ? "bg-indigo-100 text-black font-medium" : "hover:bg-gray-50"}`}
+               >
+                 {item.name}
+               </p>
+             )
+          })}
         </div>
+
         <div className='w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 gap-y-6 px-3 sm:px-0'>
           {
             filterDoc.map((item, index) => (

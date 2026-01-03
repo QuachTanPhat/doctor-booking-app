@@ -7,7 +7,7 @@ import adminRouter from './routes/adminRoute.js';
 import doctorRouter from './routes/doctorRoute.js';
 import userRouter from './routes/userRoute.js';
 import chatController from './controllers/chatController.js';
-
+import startCleanupJob from './jobs/cleanupSlots.js';
 // 1. CHỈ CẦN IMPORT 1 LẦN DUY NHẤT
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -44,7 +44,7 @@ io.on("connection", (socket) => {
 if (typeof chatController === 'function') {
     chatController(io);
 }
-
+startCleanupJob();
 // api endpoints
 app.use('/api/admin', adminRouter);
 app.use('/api/doctor', doctorRouter);

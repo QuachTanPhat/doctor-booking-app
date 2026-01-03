@@ -9,7 +9,7 @@ const Footer = () => {
         <div className='flex flex-col sm:grid grid-cols-[3fr_1fr_1fr] gap-14 my-10 mt-20 text-sm bg-gray-50 rounded-lg p-10'>
             <div>
                 {/* ------Left Section ----------- */}
-                <img className='mb-5 w-40' src={assets.logo2} alt="" />
+                <img className='mb-5 w-40' src={assets.logo} alt="" />
                 <p className='w-full md:w-2/3 text-gray-800 leading-6'>
                     Chúng tôi cung cấp nền tảng đặt lịch khám bệnh trực tuyến uy tín, 
                     kết nối bệnh nhân với mạng lưới các bác sĩ chuyên khoa hàng đầu. 
@@ -42,7 +42,7 @@ const Footer = () => {
 
         {/* --------Copyright Text */}
         <div>
-            <p className='py-5 text-sm text-center text-gray-600'>Bản quyền © 2024 thuộc về tanphat.dev - Bảo lưu mọi quyền.</p>
+            <p className='py-5 text-sm text-center text-gray-600'>Bản quyền © 2026 thuộc về tanphat.dev - Bảo lưu mọi quyền.</p>
         </div>
         
     </div>

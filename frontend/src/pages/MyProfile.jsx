@@ -8,14 +8,12 @@ const MyProfile = () => {
   const { userData, setUserData, token, backendUrl, loadUserProfileData, getUserAppointments } = useContext(AppContext);
   const [isEdit, setIsEdit] = useState(false);
   const [image, setImage] = useState(false);
-
   const [isUpdating, setIsUpdating] = useState(false);
 
   const updateUserProfileData = async () => {
     setIsUpdating(true);
     try {
       const formData = new FormData();
-
       formData.append("name", userData.name);
       formData.append("phone", userData.phone);
       formData.append("address", JSON.stringify(userData.address));
@@ -31,7 +29,7 @@ const MyProfile = () => {
       );
 
       if (data.success) {
-        toast.success("Cập nhật thông tin thành công"); // Đã sửa message
+        toast.success("Cập nhật thông tin thành công");
         await loadUserProfileData();
         if (getUserAppointments) {
           await getUserAppointments();
@@ -51,98 +49,97 @@ const MyProfile = () => {
 
   return (
     userData && (
-      <div className="max-w-lg flex flex-col gap-2 text-sm">
-        {isEdit ? (
-          <label htmlFor="image">
-            <div className="inline-block relative cursor-pointer">
-              <img
-                className="w-36 rounded opacity-75"
-                src={image ? URL.createObjectURL(image) : userData.image}
-                alt=""
+      <div className="max-w-2xl mx-auto mt-10 p-6 bg-white shadow-xl rounded-2xl border border-gray-100">
+        
+        {/* --- HEADER: ẢNH & TÊN --- */}
+        <div className="flex flex-col items-center gap-4 mb-8">
+          {isEdit ? (
+            <label htmlFor="image" className="relative cursor-pointer group">
+              <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-gray-100 shadow-sm relative">
+                 <img
+                  className="w-full h-full object-cover opacity-80 group-hover:opacity-60 transition-opacity"
+                  src={image ? URL.createObjectURL(image) : userData.image}
+                  alt="Profile"
+                />
+              </div>
+              {/* Icon Upload đè lên ảnh */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                 <img className="w-10 opacity-0 group-hover:opacity-100 transition-opacity" src={assets.upload_icon} alt="" />
+              </div>
+              {/* Icon nhỏ góc dưới */}
+              <div className="absolute bottom-2 right-2 bg-white p-2 rounded-full shadow-md">
+                 <img className="w-5" src={assets.upload_icon} alt="" />
+              </div>
+              <input
+                onChange={(e) => setImage(e.target.files[0])}
+                type="file"
+                id="image"
+                hidden
               />
-              <img
-                className="w-10 absolute bottom-12 right-12"
-                src={assets.upload_icon}
-                alt=""
-              />
+            </label>
+          ) : (
+            <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-gray-100 shadow-sm">
+                <img className="w-full h-full object-cover" src={userData.image} alt="Profile" />
             </div>
+          )}
+
+          {isEdit ? (
             <input
-              onChange={(e) => setImage(e.target.files[0])}
-              type="file"
-              id="image"
-              hidden
+              className="bg-gray-50 text-2xl font-bold text-center border-b-2 border-gray-300 focus:border-primary outline-none px-4 py-1 w-full max-w-sm text-gray-700"
+              type="text"
+              value={userData.name}
+              onChange={(e) => setUserData((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="Nhập tên của bạn"
             />
-          </label>
-        ) : (
-          <img className="w-36 rounded" src={userData.image} alt="" />
-        )}
-        {isEdit ? (
-          <input
-            className="bg-gray-50 text-3xl font-medium max-w-60 mt-4"
-            type="text"
-            value={userData.name}
-            onChange={(e) =>
-              setUserData((prev) => ({ ...prev, name: e.target.value }))
-            }
-          />
-        ) : (
-          <p className="font-medium text-3xl text-neutral-800 mt-4">
-            {userData.name}
-          </p>
-        )}
+          ) : (
+            <p className="font-bold text-2xl text-gray-800">{userData.name}</p>
+          )}
+        </div>
 
-        <hr className="bg-zinc-400 h-[1px] border-none" />
-        <div>
-          <p className="text-neutral-500 underline mt-3">THÔNG TIN LIÊN HỆ</p>
-          <div className="grid grid-cols-[1fr_3fr] gap-y-2.5 mt-3 text-neutral-700">
-            <p className="font-medium">Email: </p>
-            <p className="text-blue-500">{userData.email}</p>
+        <hr className="border-gray-200 my-6" />
 
-            <p className="font-medium">Điện thoại:</p>
+        {/* --- THÔNG TIN LIÊN HỆ --- */}
+        <div className="mb-6">
+          <p className="text-gray-500 font-semibold uppercase tracking-wider text-sm mb-4 border-l-4 border-primary pl-2">Thông tin liên hệ</p>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_3fr] gap-y-4 gap-x-4 items-center">
+            <p className="font-medium text-gray-600">Email:</p>
+            <p className="text-blue-600 font-medium truncate">{userData.email}</p>
+
+            <p className="font-medium text-gray-600">Điện thoại:</p>
             {isEdit ? (
               <input
-                className="bg-gray-100 max-w-52"
+                className="bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 w-full max-w-md outline-primary focus:bg-white transition-all"
                 type="text"
-                value={userData.phone}
-                onChange={(e) =>
-                  setUserData((prev) => ({ ...prev, phone: e.target.value }))
-                }
+                value={userData.phone || ""}
+                autoComplete="off"
+                name="phone_number_field"
+                onChange={(e) => setUserData((prev) => ({ ...prev, phone: e.target.value }))}
               />
             ) : (
-              <p className="text-blue-400">{userData.phone}</p>
+              <p className="text-blue-500">{userData.phone}</p>
             )}
 
-            <p className="font-medium">Địa chỉ:</p>
+            <p className="font-medium text-gray-600 self-start mt-2">Địa chỉ:</p>
             {isEdit ? (
-              <p>
+              <div className="flex flex-col gap-2 w-full max-w-md">
                 <input
-                  className="bg-gray-50"
-                  onChange={(e) =>
-                    setUserData((prev) => ({
-                      ...prev,
-                      address: { ...prev.address, line1: e.target.value },
-                    }))
-                  }
+                  className="bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 w-full outline-primary focus:bg-white transition-all"
+                  onChange={(e) => setUserData((prev) => ({ ...prev, address: { ...prev.address, line1: e.target.value } }))}
                   value={userData.address.line1}
                   type="text"
                   placeholder="Địa chỉ dòng 1"
                 />
-                <br />
                 <input
-                  className="bg-gray-50"
-                  onChange={(e) =>
-                    setUserData((prev) => ({
-                      ...prev,
-                      address: { ...prev.address, line2: e.target.value },
-                    }))
-                  }
+                  className="bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 w-full outline-primary focus:bg-white transition-all"
+                  onChange={(e) => setUserData((prev) => ({ ...prev, address: { ...prev.address, line2: e.target.value } }))}
                   value={userData.address.line2}
                   type="text"
                   placeholder="Địa chỉ dòng 2"
                 />
-              </p>
+              </div>
             ) : (
-              <p className="text-gray-500">
+              <p className="text-gray-600 leading-relaxed">
                 {userData.address.line1}
                 <br />
                 {userData.address.line2}
@@ -150,68 +147,76 @@ const MyProfile = () => {
             )}
           </div>
         </div>
+
+        {/* --- THÔNG TIN CƠ BẢN --- */}
         <div>
-          <p className="text-neutral-500 underline mt-3">THÔNG TIN CƠ BẢN</p>
-          <div className="grid grid-cols-[1fr_3fr] gap-y-2.5 mt-3 text-neutral-700">
-            <p className="font-medium">Giới tính:</p>
+          <p className="text-gray-500 font-semibold uppercase tracking-wider text-sm mb-4 border-l-4 border-primary pl-2">Thông tin cơ bản</p>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_3fr] gap-y-4 gap-x-4 items-center">
+            <p className="font-medium text-gray-600">Giới tính:</p>
             {isEdit ? (
               <select
-                className="max-w-20 bg-gray-100"
-                onChange={(e) =>
-                  setUserData((prev) => ({ ...prev, gender: e.target.value }))
-                }
+                className="bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 w-32 outline-primary focus:bg-white cursor-pointer"
+                onChange={(e) => setUserData((prev) => ({ ...prev, gender: e.target.value }))}
                 value={userData.gender}
               >
                 <option value="Male">Nam</option>
                 <option value="Female">Nữ</option>
               </select>
             ) : (
-              <p className="text-gray-400">
-                {userData.gender === "Male"
-                  ? "Nam"
-                  : userData.gender === "Female"
-                  ? "Nữ"
-                  : userData.gender}
+              <p className="text-gray-600">
+                {userData.gender === "Male" ? "Nam" : userData.gender === "Female" ? "Nữ" : userData.gender}
               </p>
             )}
 
-            <p className="font-medium">Ngày sinh:</p>
+            <p className="font-medium text-gray-600">Ngày sinh:</p>
             {isEdit ? (
               <input
-                className="max-w-28 bg-gray-100"
+                className="bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 w-40 outline-primary focus:bg-white cursor-pointer"
                 type="date"
-                onChange={(e) =>
-                  setUserData((prev) => ({ ...prev, dob: e.target.value }))
-                }
+                onChange={(e) => setUserData((prev) => ({ ...prev, dob: e.target.value }))}
                 value={userData.dob}
               />
             ) : (
-              <p className="text-gray-400">{userData.dob}</p>
+              <p className="text-gray-600">{userData.dob ? new Date(userData.dob).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</p>
             )}
           </div>
         </div>
-        <div className="mt-10">
+
+        {/* --- BUTTONS --- */}
+        <div className="mt-10 flex justify-center sm:justify-end gap-4">
           {isEdit ? (
-            <button
-              className={`border border-primary px-8 py-2 rounded-full hover:bg-primary hover:text-white transition-all ${
-                isUpdating ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-              onClick={updateUserProfileData}
-              disabled={isUpdating}
-            >
-              {isUpdating ? "Đang lưu..." : "Lưu thông tin"}
-            </button>
+            <>
+               <button
+                className="px-6 py-2.5 border border-gray-300 rounded-full text-gray-600 hover:bg-gray-100 transition-all font-medium"
+                onClick={() => {setIsEdit(false); setImage(false);}} // Nút Hủy
+                disabled={isUpdating}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                className={`bg-primary text-white px-8 py-2.5 rounded-full hover:bg-primary/90 transition-all shadow-md font-medium ${
+                  isUpdating ? "opacity-70 cursor-not-allowed" : ""
+                }`}
+                onClick={updateUserProfileData}
+                disabled={isUpdating}
+              >
+                {isUpdating ? "Đang lưu..." : "Lưu thông tin"}
+              </button>
+            </>
           ) : (
             <button
-              className="border border-primary px-8 py-2 rounded-full hover:bg-primary hover:text-white transition-all"
+              className="border border-primary text-primary px-8 py-2.5 rounded-full hover:bg-primary hover:text-white transition-all font-medium shadow-sm"
               onClick={() => setIsEdit(true)}
             >
-              Chỉnh sửa
+              Chỉnh sửa hồ sơ
             </button>
           )}
         </div>
+
       </div>
     )
   );
 };
+
 export default MyProfile;

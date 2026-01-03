@@ -2,10 +2,11 @@ import React, { useState, useContext, useEffect } from 'react';
 import { AdminContext } from '../../context/AdminContext';
 import { assets } from '../../assets/assets';
 import { toast } from 'react-toastify';
+import { AppContext } from '../../context/AppContext';
 
 const DoctorModal = ({ onClose, initialData }) => {
-    // 1. Lấy updateDoctor và specialities từ Context
-    const { specialities, getAllSpecialities, updateDoctor, addDoctor } = useContext(AdminContext); // Giả sử bạn có hàm addDoctor trong context luôn, nếu chưa thì gọi axios trực tiếp cũng được
+    const { specialities, getAllSpecialities, updateDoctor, addDoctor } = useContext(AdminContext);
+    const { currency } = useContext(AppContext);
 
     const [docImg, setDocImg] = useState(false);
     const [name, setName] = useState(initialData?.name || '');
@@ -14,19 +15,17 @@ const DoctorModal = ({ onClose, initialData }) => {
     const [experience, setExperience] = useState(initialData?.experience || '1 Năm');
     const [fees, setFees] = useState(initialData?.fees || '');
     const [about, setAbout] = useState(initialData?.about || '');
-    const [speciality, setSpeciality] = useState(initialData?.speciality || ''); 
+    const [speciality, setSpeciality] = useState(initialData?.speciality || '');
     const [degree, setDegree] = useState(initialData?.degree || '');
     const [address1, setAddress1] = useState(initialData?.address?.line1 || '');
     const [address2, setAddress2] = useState(initialData?.address?.line2 || '');
 
     const isEditMode = !!initialData;
 
-    // Load danh sách chuyên khoa khi mở modal
     useEffect(() => {
         getAllSpecialities();
     }, []);
 
-    // Set chuyên khoa mặc định nếu chưa chọn
     useEffect(() => {
         if (!speciality && specialities.length > 0 && !initialData) {
             setSpeciality(specialities[0].name);
@@ -37,16 +36,20 @@ const DoctorModal = ({ onClose, initialData }) => {
         event.preventDefault();
 
         try {
-            if (!docImg && !isEditMode) {
-                return toast.error('Chưa chọn ảnh đại diện');
-            }
+            // Validation thủ công thêm
+            if (Number(fees) <= 0) return toast.error("Phí khám phải lớn hơn 0");
+
+            const expNumber = parseInt(experience.toString().replace(" Năm", ""));
+            if (isNaN(expNumber) || expNumber <= 0) return toast.error("Kinh nghiệm phải lớn hơn 0");
+
+            if (!docImg && !isEditMode) return toast.error('Chưa chọn ảnh đại diện');
 
             const formData = new FormData();
-            
-            // Nếu có ảnh mới thì gửi, không thì thôi
-            if(docImg) formData.append('image', docImg);
-            
+            if (docImg) formData.append('image', docImg);
+
             formData.append('name', name);
+            formData.append('email', email);
+            formData.append('password', password);
             formData.append('experience', experience);
             formData.append('fees', Number(fees));
             formData.append('about', about);
@@ -55,21 +58,12 @@ const DoctorModal = ({ onClose, initialData }) => {
             formData.append('address', JSON.stringify({ line1: address1, line2: address2 }));
 
             if (isEditMode) {
-                // --- LOGIC SỬA: DÙNG HÀM updateDoctor TỪ CONTEXT ---
-                formData.append('docId', initialData._id); // Gửi thêm ID để biết sửa ai
-                
-                const success = await updateDoctor(formData); // Gọi hàm từ Context
-                
-                if (success) {
-                    onClose();
-                }
+                formData.append('docId', initialData._id);
+                const success = await updateDoctor(formData);
+                if (success) onClose();
             } else {
-                // --- LOGIC THÊM MỚI ---
-                formData.append('email', email);
-                formData.append('password', password);
-              
-                 const { AdminContext } = await import('../../context/AdminContext'); // Lazy import trick if needed, but better use context
-                
+                const success = await addDoctor(formData);
+                if (success) onClose();
             }
 
         } catch (error) {
@@ -78,10 +72,13 @@ const DoctorModal = ({ onClose, initialData }) => {
         }
     };
 
+    // Hàm helper để reset lỗi khi user bắt đầu gõ
+    const handleInput = (e) => e.target.setCustomValidity('');
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
             <form onSubmit={onSubmitHandler} className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-fadeIn">
-                
+
                 <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white z-10">
                     <p className="text-xl font-semibold text-gray-800">
                         {isEditMode ? 'Cập Nhật Thông Tin Bác Sĩ' : 'Thêm Bác Sĩ Mới'}
@@ -92,10 +89,10 @@ const DoctorModal = ({ onClose, initialData }) => {
                 <div className="p-8">
                     <div className="flex items-center gap-4 mb-8 text-gray-500">
                         <label htmlFor="doc-img">
-                            <img 
-                                className="w-20 h-20 bg-gray-100 rounded-full object-cover cursor-pointer border hover:border-primary" 
-                                src={docImg ? URL.createObjectURL(docImg) : (initialData?.image || assets.upload_area)} 
-                                alt="" 
+                            <img
+                                className="w-20 h-20 bg-gray-100 rounded-full object-cover cursor-pointer border hover:border-primary"
+                                src={docImg ? URL.createObjectURL(docImg) : (initialData?.image || assets.upload_area)}
+                                alt=""
                             />
                         </label>
                         <input onChange={(e) => setDocImg(e.target.files[0])} type="file" id="doc-img" hidden />
@@ -103,71 +100,150 @@ const DoctorModal = ({ onClose, initialData }) => {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* Cột Trái */}
+                        {/* --- CỘT TRÁI --- */}
                         <div className="flex flex-col gap-4">
                             <div className="flex flex-col gap-1">
                                 <label className="text-sm font-medium">Tên bác sĩ</label>
-                                <input onChange={(e) => setName(e.target.value)} value={name} className="border rounded px-3 py-2 outline-primary" type="text" placeholder="Nhập tên" required />
+                                <input 
+                                    onChange={(e) => setName(e.target.value)} 
+                                    value={name} 
+                                    className="border rounded px-3 py-2 outline-primary" 
+                                    type="text" 
+                                    placeholder="Nhập tên" 
+                                    required 
+                                    onInvalid={e => e.target.setCustomValidity('Vui lòng nhập tên bác sĩ')}
+                                    onInput={handleInput}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">Email (Tên đăng nhập)</label>
+                                <input
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    value={email}
+                                    className="border rounded px-3 py-2 outline-primary"
+                                    type="email"
+                                    placeholder="Nhập email"
+                                    required
+                                    onInvalid={e => {
+                                        if(e.target.validity.valueMissing) e.target.setCustomValidity('Vui lòng nhập email');
+                                        else if(e.target.validity.typeMismatch) e.target.setCustomValidity('Email không đúng định dạng');
+                                    }}
+                                    onInput={handleInput}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">Mật khẩu</label>
+                                <input
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    value={password}
+                                    className="border rounded px-3 py-2 outline-primary"
+                                    type="password"
+                                    placeholder={isEditMode ? "Để trống nếu không muốn đổi" : "Nhập mật khẩu"}
+                                    required={!isEditMode}
+                                    onInvalid={e => e.target.setCustomValidity('Vui lòng nhập mật khẩu')}
+                                    onInput={handleInput}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">Phí khám {currency}</label>
+                                <input
+                                    onChange={(e) => setFees(e.target.value)}
+                                    value={fees}
+                                    className="border rounded px-3 py-2 outline-primary"
+                                    type="number"
+                                    min="1"
+                                    placeholder="VD: 500000"
+                                    required
+                                    onInvalid={(e) => {
+                                        if (e.target.validity.rangeUnderflow) e.target.setCustomValidity('Giá trị phải lớn hơn hoặc bằng 1');
+                                        else if (e.target.validity.valueMissing) e.target.setCustomValidity('Vui lòng nhập phí khám');
+                                    }}
+                                    onInput={handleInput}
+                                />
                             </div>
                             
-                            {!isEditMode && (
-                                <>
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-sm font-medium">Email</label>
-                                        <input onChange={(e) => setEmail(e.target.value)} value={email} className="border rounded px-3 py-2 outline-primary" type="email" placeholder="Nhập email" required />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-sm font-medium">Mật khẩu</label>
-                                        <input onChange={(e) => setPassword(e.target.value)} value={password} className="border rounded px-3 py-2 outline-primary" type="password" placeholder="Nhập mật khẩu" required />
-                                    </div>
-                                </>
-                            )}
-                             <div className="flex flex-col gap-1">
-                                <label className="text-sm font-medium">Phí khám ($)</label>
-                                <input onChange={(e) => setFees(e.target.value)} value={fees} className="border rounded px-3 py-2 outline-primary" type="number" required />
-                            </div>
-                             <div className="flex flex-col gap-1">
-                                <label className="text-sm font-medium">Kinh nghiệm</label>
-                                <select onChange={(e) => setExperience(e.target.value)} value={experience} className="border rounded px-3 py-2 outline-primary">
-                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((item) => (
-                                        <option key={item} value={`${item} Năm`}>{item} Năm</option>
-                                    ))}
-                                </select>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">Kinh nghiệm (Năm)</label>
+                                <input
+                                    onChange={(e) => setExperience(e.target.value + " Năm")}
+                                    value={experience.replace(" Năm", "")}
+                                    className="border rounded px-3 py-2 outline-primary"
+                                    type="number"
+                                    placeholder="Nhập số năm (VD: 5)"
+                                    min="1"
+                                    required
+                                    onInvalid={(e) => {
+                                        if (e.target.validity.rangeUnderflow) e.target.setCustomValidity('Số năm kinh nghiệm phải lớn hơn 0');
+                                        else if (e.target.validity.valueMissing) e.target.setCustomValidity('Vui lòng nhập số năm kinh nghiệm');
+                                    }}
+                                    onInput={handleInput}
+                                />
                             </div>
                         </div>
 
-                        {/* Cột Phải */}
+                        {/* --- CỘT PHẢI --- */}
                         <div className="flex flex-col gap-4">
-                            {/* --- SELECT CHUYÊN KHOA ĐỘNG (Lấy từ DB) --- */}
                             <div className="flex flex-col gap-1">
                                 <label className="text-sm font-medium">Chuyên khoa</label>
-                                <select onChange={(e) => setSpeciality(e.target.value)} value={speciality} className="border rounded px-3 py-2 outline-primary">
-                                    {specialities && specialities.length > 0 ? (
-                                        specialities.map((item, index) => (
-                                            <option key={index} value={item.name}>{item.name}</option>
-                                        ))
-                                    ) : (
-                                        <option value="">Đang tải danh sách...</option>
-                                    )}
+                                <select onChange={(e) => setSpeciality(e.target.value)} value={speciality} className="border rounded px-3 py-2 outline-primary cursor-pointer">
+                                    {specialities.map((item, index) => (
+                                        <option key={index} value={item.name}>{item.name}</option>
+                                    ))}
                                 </select>
                             </div>
 
                             <div className="flex flex-col gap-1">
                                 <label className="text-sm font-medium">Bằng cấp</label>
-                                <input onChange={(e) => setDegree(e.target.value)} value={degree} className="border rounded px-3 py-2 outline-primary" type="text" placeholder="Ví dụ: MBBS" required />
+                                <input 
+                                    onChange={(e) => setDegree(e.target.value)} 
+                                    value={degree} 
+                                    className="border rounded px-3 py-2 outline-primary" 
+                                    type="text" 
+                                    placeholder="Ví dụ: MBBS" 
+                                    required 
+                                    onInvalid={e => e.target.setCustomValidity('Vui lòng nhập bằng cấp')}
+                                    onInput={handleInput}
+                                />
                             </div>
 
                             <div className="flex flex-col gap-1">
                                 <label className="text-sm font-medium">Địa chỉ</label>
-                                <input onChange={(e) => setAddress1(e.target.value)} value={address1} className="border rounded px-3 py-2 mb-2 outline-primary" type="text" placeholder="Địa chỉ dòng 1" required />
-                                <input onChange={(e) => setAddress2(e.target.value)} value={address2} className="border rounded px-3 py-2 outline-primary" type="text" placeholder="Địa chỉ dòng 2" />
+                                <input 
+                                    onChange={(e) => setAddress1(e.target.value)} 
+                                    value={address1} 
+                                    className="border rounded px-3 py-2 mb-2 outline-primary" 
+                                    type="text" 
+                                    placeholder="Địa chỉ dòng 1" 
+                                    required 
+                                    onInvalid={e => e.target.setCustomValidity('Vui lòng nhập địa chỉ dòng 1')}
+                                    onInput={handleInput}
+                                />
+                                <input 
+                                    onChange={(e) => setAddress2(e.target.value)} 
+                                    value={address2} 
+                                    className="border rounded px-3 py-2 outline-primary" 
+                                    type="text" 
+                                    placeholder="Địa chỉ dòng 2 (Không bắt buộc)" 
+                                />
                             </div>
                         </div>
                     </div>
 
                     <div className="mt-6">
                         <label className="text-sm font-medium mb-2 block">Giới thiệu</label>
-                        <textarea onChange={(e) => setAbout(e.target.value)} value={about} className="w-full px-4 py-2 border rounded outline-primary" rows={4} placeholder="Viết giới thiệu..." required />
+                        <textarea 
+                            onChange={(e) => setAbout(e.target.value)} 
+                            value={about} 
+                            className="w-full px-4 py-2 border rounded outline-primary resize-none" 
+                            rows={4} 
+                            placeholder="Viết giới thiệu..." 
+                            required 
+                            onInvalid={e => e.target.setCustomValidity('Vui lòng nhập thông tin giới thiệu')}
+                            onInput={handleInput}
+                        />
                     </div>
                 </div>
 

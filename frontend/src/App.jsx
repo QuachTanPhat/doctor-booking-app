@@ -12,7 +12,6 @@ import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import ChatWidget from './components/ChatWidget'
 import { ToastContainer, toast } from 'react-toastify'
-import AiPrediction from './pages/AiPrediction';
 const App = () => {
   return (
     <div className='mx-4 sm:mx-[10%]' >
@@ -28,7 +27,6 @@ const App = () => {
         <Route path='/my-profile' element={<MyProfile/>}></Route>
         <Route path='/my-appointments' element={<MyAppointments/>}></Route>
         <Route path='/appointment/:docId' element={<Appointments/>}></Route>
-        <Route path='/ai-predict' element={<AiPrediction />} />
       </Routes>
       <ChatWidget />
       <Footer/>

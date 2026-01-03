@@ -5,7 +5,6 @@ import { AppContext } from "../context/AppContext";
 
 const Navbar = () => {
   const navigate = useNavigate();
-
   const { token, setToken, userData } = useContext(AppContext);
   const [showMenu, setShowMenu] = useState(false);
 
@@ -19,7 +18,7 @@ const Navbar = () => {
       <img
         onClick={() => navigate("/")}
         className="w-44 cursor-pointer"
-        src={assets.logo2}
+        src={assets.logo}
         alt=""
       />
 
@@ -52,10 +51,8 @@ const Navbar = () => {
             />
             <img className="w-2.5" src={assets.dropdown_icon} alt="" />
 
-            {/* --- PHẦN DROPDOWN ĐƯỢC SỬA LẠI --- */}
             <div className="absolute top-0 right-0 pt-14 text-base font-medium text-gray-600 z-20 hidden group-hover:block">
               <div className="min-w-64 bg-white rounded-lg shadow-xl border border-gray-100 flex flex-col">
-                {/* Header: Tên và Email */}
                 <div className="px-5 py-3 border-b border-gray-100">
                   <p className="text-gray-900 font-bold truncate">
                     {userData.name}
@@ -65,14 +62,11 @@ const Navbar = () => {
                   </p>
                 </div>
 
-                {/* Menu Items */}
                 <div className="p-2 flex flex-col gap-1">
-                  {/* Hồ sơ cá nhân */}
                   <div
                     onClick={() => navigate("my-profile")}
                     className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer rounded-md transition-colors"
                   >
-                    {/* Icon User */}
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -90,12 +84,10 @@ const Navbar = () => {
                     <p className="text-gray-700 text-sm">Hồ sơ cá nhân</p>
                   </div>
 
-                  {/* Lịch hẹn của tôi */}
                   <div
                     onClick={() => navigate("my-appointments")}
                     className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer rounded-md transition-colors"
                   >
-                    {/* Icon Appointment/Calendar */}
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -113,12 +105,10 @@ const Navbar = () => {
                     <p className="text-gray-700 text-sm">Lịch hẹn của tôi</p>
                   </div>
 
-                  {/* Đăng xuất (Màu đỏ) */}
                   <div
                     onClick={logout}
                     className="flex items-center gap-3 px-3 py-2 hover:bg-red-50 cursor-pointer rounded-md transition-colors group/item"
                   >
-                    {/* Icon Logout */}
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -142,12 +132,24 @@ const Navbar = () => {
             </div>
           </div>
         ) : (
-          <button
-            onClick={() => navigate("/login")}
-            className="bg-primary text-white px-8 py-3 rounded-full font-light hidden md:block"
-          >
-            Tạo tài khoản
-          </button>
+          <div className="hidden md:flex gap-2">
+             {/* --- NÚT ĐĂNG KÝ (Mới thêm) --- */}
+            <button
+              onClick={() => navigate("/login", { state: { openSignUp: true } })}
+              
+              className="bg-white text-primary border border-primary px-8 py-3 rounded-full font-light hover:bg-gray-50 transition-all"
+            >
+              Đăng ký
+            </button>
+            
+            {/* --- NÚT ĐĂNG NHẬP (Giữ nguyên) --- */}
+            <button
+              onClick={() => navigate("/login")}
+              className="bg-primary text-white px-8 py-3 rounded-full font-light hover:bg-primary/90 transition-all"
+            >
+              Đăng nhập
+            </button>
+          </div>
         )}
 
         <img
@@ -157,7 +159,6 @@ const Navbar = () => {
           alt=""
         />
 
-        {/* ------ Mobile Menu (Giữ nguyên của bạn) --------- */}
         <div
           className={` ${
             showMenu ? "fixed w-full" : "h-0 w-0"
@@ -185,6 +186,13 @@ const Navbar = () => {
             <NavLink onClick={() => setShowMenu(false)} to="/contact">
               <p className="px-4 py-2 rounded inline-block">LIÊN HỆ</p>
             </NavLink>
+            {/* Nút Đăng nhập/Đăng ký trên Mobile */}
+            {!token && (
+               <div className="flex flex-col gap-2 mt-4 w-full px-10">
+                   <button onClick={() => {navigate("/login"); setShowMenu(false)}} className="w-full py-2 border border-primary text-primary rounded-full">Đăng ký</button>
+                   <button onClick={() => {navigate("/login"); setShowMenu(false)}} className="w-full py-2 bg-primary text-white rounded-full">Đăng nhập</button>
+               </div>
+            )}
           </ul>
         </div>
       </div>

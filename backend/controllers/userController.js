@@ -8,24 +8,29 @@ import appointmentModel from '../models/appointmentModel.js';
 import specialityModel from '../models/specialityModel.js'
 import nodemailer from 'nodemailer'
 import { OAuth2Client } from "google-auth-library"
+import transactionModel from '../models/transactionModel.js';
 // API to resgiter user
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const resgiterUser = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, username } = req.body;
+        const usernameExists = await userModel.findOne({ username });
 
+        if (usernameExists) {
+            return res.json({ success: false, message: "Tên tài khoản đã tồn tại" });
+        }
         if (!name || !password || !email) {
-            return res.json({ success: false, message: "Missing Details" });
+            return res.json({ success: false, message: "Thiếu thông tin" });
         }
 
         //validating email format
         if (!validator.isEmail(email)) {
-            return res.json({ success: false, message: "enter a valid email" });
+            return res.json({ success: false, message: "Nhập đúng định dạng email" });
         }
 
         // validating strong password
         if (password.length < 8) {
-            return res.json({ success: false, message: "enter a strong password" });
+            return res.json({ success: false, message: "Mật khẩu phải có ít nhất 8 ký tự" });
         }
 
         // hashing user password
@@ -36,6 +41,7 @@ const resgiterUser = async (req, res) => {
             name,
             email,
             password: hashedPassword,
+            username: username
         };
 
         const newUSer = new userModel(userData);
@@ -53,23 +59,40 @@ const resgiterUser = async (req, res) => {
 //API for user login
 const loginUser = async (req, res) => {
     try {
-        const { email, password } = req.body
-        const user = await userModel.findOne({ email })
+        const { username, password } = req.body // Hoặc email tuỳ vào db bạn dùng field nào
+        
+        // 1. Tìm user trong DB
+        const user = await userModel.findOne({ username }) // Hoặc { email: email }
 
+        // 2. Kiểm tra user có tồn tại không
         if (!user) {
-            return res.json({ success: false, message: "User does not exist" })
+            return res.json({ success: false, message: "Tên tài khoản không tồn tại" })
         }
+
+        // --- 3. BỔ SUNG: CHECK TÀI KHOẢN BỊ XÓA (QUAN TRỌNG) ---
+        if (user.isDeleted) {
+            return res.json({ 
+                success: false, 
+                message: "Tài khoản đã bị xoá khỏi hệ thống" 
+            });
+        }
+        // -----------------------------------------------------
+
+        // 4. Kiểm tra bị khóa (Blocked)
         if (user.isBlocked) {
             return res.json({ success: false, message: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin!" });
         }
+
+        // 5. Kiểm tra mật khẩu
         const isMatch = await bcrypt.compare(password, user.password)
 
         if (isMatch) {
             const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET)
             res.json({ success: true, token });
         } else {
-            res.json({ success: false, message: "Invalid credentials" })
+            res.json({ success: false, message: "Thông tin đăng nhập không chính xác" })
         }
+
     } catch (error) {
         console.log(error);
         res.json({ success: false, message: error.message })
@@ -94,7 +117,7 @@ const updateProfile = async (req, res) => {
         const imageFile = req.file;
 
         if (!name || !phone || !dob || !gender) {
-            return res.json({ success: false, message: "Data Missing" })
+            return res.json({ success: false, message: "Thiếu thông tin" })
         }
 
         await userModel.findByIdAndUpdate(userId, {
@@ -113,9 +136,6 @@ const updateProfile = async (req, res) => {
             await userModel.findByIdAndUpdate(userId,{image:imageUrl})
         }
         const updatedUserData = await userModel.findById(userId)
-
-        // 4. Tìm tất cả lịch hẹn của user này và cập nhật lại field 'userData'
-        // Để ảnh và tên mới hiển thị ngay lập tức trên lịch sử cũ
         await appointmentModel.updateMany(
             { userId: userId }, 
             { userData: updatedUserData }
@@ -124,7 +144,7 @@ const updateProfile = async (req, res) => {
         if (req.io) {
             req.io.emit('update-appointments');
         }
-        res.json({success:true, message:"Profile Updated"})
+        res.json({success:true, message:"Cập nhật hồ sơ thành công"})
 
     } catch (error) {
         console.log(error);
@@ -139,7 +159,7 @@ const bookAppointment = async (req,res) => {
         const docData = await doctorModel.findById(docId).select('-password')
 
         if(!docData.available){
-            return res.json({success:false, message:'Doctor not available'})
+            return res.json({success:false, message:'Bác sĩ không làm việc tại thời điểm này' })
         }
 
         let slots_booked = docData.slots_booked || {}
@@ -147,7 +167,7 @@ const bookAppointment = async (req,res) => {
         //checking for slot availablity
         if (slots_booked[slotDate]){
             if(slots_booked[slotDate].includes(slotTime)){
-                return res.json({success:false, message:'Slot not available'})
+                return res.json({success:false, message:'Slot không còn chỗ trống'})
             }else{
                 slots_booked[slotDate].push(slotTime)
             }
@@ -181,7 +201,7 @@ const bookAppointment = async (req,res) => {
         if (req.io) {
             req.io.emit('update-appointments');
         }
-        res.json({ success: true, message: 'Appointment Booked' })
+        res.json({ success: true, message: 'Đã đặt lịch hẹn' })
 
     } catch (error) {
         console.log(error);
@@ -193,7 +213,10 @@ const bookAppointment = async (req,res) => {
 const listAppointment = async (req,res) => {
     try {
         const {userId} = req.body
-        const appointment = await appointmentModel.find({userId})
+        const appointment = await appointmentModel.find({
+            userId, 
+            isDeleted: { $ne: true } 
+        })
 
         res.json({success:true, appointment})
     } catch (error) {
@@ -210,7 +233,7 @@ const cancelAppointment = async (req, res) => {
         const appointmentData = await appointmentModel.findById(appointmentId)
 
         if(appointmentData.userId !== userId){
-            return res.json({success: false, message:'Unauthorized action'})
+            return res.json({success: false, message:'Không có quyền thực hiện hành động này'})
         }
 
         await appointmentModel.findByIdAndUpdate(appointmentId,{cancelled:true})
@@ -230,7 +253,7 @@ const cancelAppointment = async (req, res) => {
         if (req.io) {
             req.io.emit('update-appointments');
         }
-        res.json({success:true, message:'Appointment Cancelled'})
+        res.json({success:true, message:'Đã hủy lịch hẹn'})
     } catch (error) {
         console.log(error)
         res.json({success:false, message:error.message})
@@ -263,49 +286,76 @@ const getAllSpecialities = async (req, res) => {
 const verifyPaymentWebhook = async (req, res) => {
     try {
         const sepayToken = req.headers['authorization'];
-        const myToken = "Apikey " + process.env.SEPAY_API_TOKEN; 
+        const myToken = "Apikey " + process.env.SEPAY_API_TOKEN;
         
         const data = req.body;
+        
+        // 1. Kiểm tra bảo mật
+        if (process.env.SEPAY_API_TOKEN && sepayToken !== myToken) {
+            return res.json({ success: false, message: "Truy cập bị từ chối (Sai Token)" });
+        }
+
         const amountIn = data.transferAmount || data.amount || 0;
         const contentIn = data.transferContent || data.content || data.description || "";
+        const transactionCode = data.id || data.code || ""; // Mã giao dịch ngân hàng
 
-        if (process.env.SEPAY_API_TOKEN && sepayToken !== myToken) {
-             return res.json({ success: false, message: "Truy cập bị từ chối (Sai Token)" });
-        }
-        if (!contentIn) {
-            return res.json({ success: true, message: "Không tìm thấy nội dung chuyển khoản" });
+        // 2. Logic trích xuất ID từ nội dung chuyển khoản (QUAN TRỌNG)
+        // MongoDB ID là chuỗi 24 ký tự gồm số và chữ cái a-f
+        const idRegex = /[a-fA-F0-9]{24}/; 
+        const match = contentIn.toString().match(idRegex);
+
+        let appointmentId = null;
+        if (match && match.length > 0) {
+            appointmentId = match[0]; // Lấy được ID đơn hàng
         }
 
-        
-        const appointments = await appointmentModel.find({ payment: false });
-        
-        let foundAppointment = null;
-        for (const appt of appointments) {
-            if (contentIn.toString().toLowerCase().includes(appt._id.toString().toLowerCase())) {
-                foundAppointment = appt;
-                break;
+        // 3. Lưu lịch sử giao dịch (Dù tìm thấy đơn hay không cũng phải lưu để đối soát)
+        const newTransaction = new transactionModel({
+            amountIn: amountIn,
+            transactionContent: contentIn,
+            code: transactionCode,
+            referenceCode: appointmentId || "UNKNOWN"
+        });
+        await newTransaction.save();
+
+        if (!appointmentId) {
+            return res.json({ success: true, message: "Không tìm thấy mã đơn hàng trong nội dung" });
+        }
+
+        // 4. Tìm đơn hàng đích danh (Thay vì vòng lặp)
+        const appointment = await appointmentModel.findById(appointmentId);
+
+        if (appointment) {
+            if (appointment.payment) {
+                return res.json({ success: true, message: "Đơn này đã được thanh toán trước đó" });
             }
-        }
 
-        if (foundAppointment) {
-            console.log(`=> Tìm thấy đơn: ${foundAppointment._id} (Giá: ${foundAppointment.amount})`);
-            if (Number(amountIn) >= Number(foundAppointment.amount)) {
-                await appointmentModel.findByIdAndUpdate(foundAppointment._id, { 
-                    payment: true 
+            console.log(`=> Tìm thấy đơn: ${appointment._id} - Cần: ${appointment.amount} - Nhận: ${amountIn}`);
+
+            // 5. So sánh tiền
+            if (Number(amountIn) >= Number(appointment.amount)) {
+                
+                await appointmentModel.findByIdAndUpdate(appointmentId, { 
+                    payment: true,
+                    isApproved: true, 
+                    paymentMethod: 'Chuyển khoản Online' // Lưu thêm phương thức nếu cần
                 });
+
                 console.log("=> CẬP NHẬT THÀNH CÔNG!");
+                
                 if (req.io) {
-                    req.io.emit('update-appointments'); // Báo cho client load lại
+                    req.io.emit('update-appointments');
                 }
-                return res.json({ success: true, message: "Success" });
+
+                return res.json({ success: true, message: "Thanh toán thành công" });
             } else {
                 console.log("=> Lỗi: Tiền không đủ.");
+                return res.json({ success: true, message: "Số tiền không đủ" });
             }
         } else {
-            console.log("=> Không tìm thấy đơn hàng nào khớp ID.");
+            console.log("=> Có ID trong nội dung nhưng không tìm thấy đơn trong DB.");
+            return res.json({ success: true, message: "Không tìm thấy đơn hàng" });
         }
-        
-        return res.json({ success: true, message: "Done" });
 
     } catch (error) {
         console.log("Webhook Error:", error);
@@ -341,7 +391,7 @@ const sendContactEmail = async (req, res) => {
 
         await transporter.sendMail(mailOptions);
 
-        res.json({ success: true, message: "Email sent successfully" });
+        res.json({ success: true, message: "Email gửi thành công" });
 
     } catch (error) {
         console.log(error);
@@ -352,7 +402,7 @@ const googleLogin = async (req, res) => {
     try {
         const { googleToken } = req.body;
 
-        // 1. Xác thực token với Google để đảm bảo không bị giả mạo
+        // 1. Xác thực token với Google
         const ticket = await client.verifyIdToken({
             idToken: googleToken,
             audience: process.env.GOOGLE_CLIENT_ID, 
@@ -360,27 +410,44 @@ const googleLogin = async (req, res) => {
 
         const { name, email, picture } = ticket.getPayload();
 
-        // 2. Kiểm tra xem user đã tồn tại chưa
+        // --- SỬA Ở ĐÂY: Tìm user trong DB trước ---
         let user = await userModel.findOne({ email });
 
         if (user) {
-            if (user.isBlocked) {
-                return res.json({ success: false, message: "Tài khoản Google này đã bị khóa!" });
+            // 2. User đã tồn tại -> Kiểm tra các cờ trạng thái
+            
+            // Kiểm tra bị xóa (QUAN TRỌNG)
+            if (user.isDeleted) {
+                return res.json({ 
+                    success: false, 
+                    message: "Tài khoản đã bị xoá khỏi hệ thống" 
+                });
             }
-            // Nếu có rồi -> Tạo token đăng nhập
+
+            // Kiểm tra bị khóa (Optional)
+            if (user.isBlocked) {
+                return res.json({ 
+                    success: false, 
+                    message: "Tài khoản Google này đã bị khóa!" 
+                });
+            }
+
+            // Mọi thứ ok -> Cấp token
             const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
             res.json({ success: true, token });
+
         } else {
-            // Nếu chưa có -> Tạo user mới (Mật khẩu để ngẫu nhiên hoặc rỗng vì họ dùng Google)
+            // 3. User chưa tồn tại -> Tạo mới
+            // (User mới tạo thì mặc định sạch, không cần check isDeleted)
             const newUser = new userModel({
                 name,
                 email,
-                image: picture, // Lưu ảnh avatar từ Google
-                password: Date.now().toString(), // Mật khẩu ngẫu nhiên để không bị lỗi validate
+                image: picture, 
+                password: Date.now().toString(), // Mật khẩu ngẫu nhiên
             });
 
-            const user = await newUser.save();
-            const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+            const savedUser = await newUser.save();
+            const token = jwt.sign({ id: savedUser._id }, process.env.JWT_SECRET);
             res.json({ success: true, token });
         }
 
@@ -389,6 +456,107 @@ const googleLogin = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 }
+const transporter = nodemailer.createTransport({
+    service: 'gmail', // Hoặc 'smtp-relay.brevo.com' tùy bạn
+    auth: {
+        user: process.env.MAIL_USER, 
+        pass: process.env.MAIL_PASS  
+    }
+});
+
+// API 1: Gửi OTP xác nhận quên mật khẩu
+const sendResetOtp = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        const user = await userModel.findOne({ email });
+        if (!user) {
+            return res.json({ success: false, message: "Email không tồn tại trong hệ thống!" });
+        }
+
+        // Tạo OTP 6 số ngẫu nhiên
+        const otp = String(Math.floor(100000 + Math.random() * 900000));
+
+        // Lưu OTP vào DB (Hết hạn sau 15 phút)
+        user.verifyOtp = otp;
+        user.verifyOtpExpireAt = Date.now() + 15 * 60 * 1000; 
+        await user.save();
+
+        // Cấu hình nội dung email
+        const mailOptions = {
+            from: process.env.MAIL_USER,
+            to: email,
+            subject: 'MÃ XÁC NHẬN ĐẶT LẠI MẬT KHẨU - PRESCRIPTO',
+            html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
+                    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                        <h2 style="color: #333; text-align: center;">Yêu cầu đặt lại mật khẩu</h2>
+                        <p style="color: #666; font-size: 16px;">Xin chào <strong>${user.name}</strong>,</p>
+                        <p style="color: #666; font-size: 16px;">Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản Prescripto. Mã xác nhận (OTP) của bạn là:</p>
+                        <div style="text-align: center; margin: 20px 0;">
+                            <span style="font-size: 32px; font-weight: bold; color: #5f6fff; letter-spacing: 5px;">${otp}</span>
+                        </div>
+                        <p style="color: #666; font-size: 14px;">Mã này có hiệu lực trong vòng <strong>15 phút</strong>. Vui lòng không chia sẻ mã này cho bất kỳ ai.</p>
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                        <p style="color: #999; font-size: 12px; text-align: center;">Nếu bạn không yêu cầu điều này, vui lòng bỏ qua email này.</p>
+                    </div>
+                </div>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        res.json({ success: true, message: "Đã gửi mã OTP đến email của bạn!" });
+
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+}
+
+// API 2: Xác thực OTP và Đặt mật khẩu mới
+const resetPassword = async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+
+        const user = await userModel.findOne({ email });
+        if (!user) {
+            return res.json({ success: false, message: "Email không tồn tại!" });
+        }
+
+        // Kiểm tra OTP
+        if (user.verifyOtp === '' || user.verifyOtp !== otp) {
+            return res.json({ success: false, message: "Mã OTP không chính xác!" });
+        }
+
+        // Kiểm tra hạn sử dụng OTP
+        if (user.verifyOtpExpireAt < Date.now()) {
+            return res.json({ success: false, message: "Mã OTP đã hết hạn!" });
+        }
+
+        // Kiểm tra độ mạnh mật khẩu mới
+        if (newPassword.length < 8) {
+             return res.json({ success: false, message: "Mật khẩu mới phải có ít nhất 8 ký tự!" });
+        }
+
+        // Mã hóa mật khẩu mới
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Cập nhật User & Xóa OTP cũ
+        user.password = hashedPassword;
+        user.verifyOtp = '';
+        user.verifyOtpExpireAt = 0;
+        await user.save();
+
+        res.json({ success: true, message: "Đổi mật khẩu thành công! Vui lòng đăng nhập lại." });
+
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+}
 export { resgiterUser, loginUser, getProfile, updateProfile, bookAppointment,
-     listAppointment, cancelAppointment, getAllSpecialities, checkPaymentStatus, verifyPaymentWebhook, sendContactEmail, googleLogin
+     listAppointment, cancelAppointment, getAllSpecialities, checkPaymentStatus,
+      verifyPaymentWebhook, sendContactEmail, googleLogin, sendResetOtp, resetPassword
      };

@@ -1,5 +1,6 @@
 import express from 'express'
-import { resgiterUser, loginUser, getProfile, updateProfile, getAllSpecialities, bookAppointment, listAppointment, cancelAppointment, sendContactEmail, googleLogin } from '../controllers/userController.js'
+import { resgiterUser, loginUser, getProfile, updateProfile,
+     getAllSpecialities, bookAppointment, listAppointment, cancelAppointment, sendContactEmail, googleLogin, sendResetOtp, resetPassword } from '../controllers/userController.js'
 import authUser from '../middlewares/authUser.js'
 import upload from '../middlewares/multer.js'
 import { verifyPaymentWebhook, checkPaymentStatus } from '../controllers/userController.js';
@@ -17,4 +18,6 @@ userRouter.post('/payment-webhook', verifyPaymentWebhook);
 userRouter.post('/check-payment-status', authUser, checkPaymentStatus);
 userRouter.post('/send-contact-email', sendContactEmail)
 userRouter.post('/google-login', googleLogin)
+userRouter.post('/send-otp', sendResetOtp);      
+userRouter.post('/reset-password', resetPassword);
 export default userRouter

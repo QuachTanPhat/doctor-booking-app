@@ -1,8 +1,6 @@
 // src/pages/Login.jsx
-import React, { use } from 'react'
-import {assets} from '../assets/assets'
-import { useState } from 'react'
-import { useContext } from 'react'
+import React, { useContext, useState } from 'react'
+import { assets } from '../assets/assets'
 import { AdminContext } from '../context/AdminContext.jsx'
 import axios from 'axios'
 import { toast } from 'react-toastify'
@@ -14,40 +12,43 @@ const Login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
-
-  const {setAToken, backendUrl} = useContext(AdminContext)
-  const {setDToken} = useContext(DoctorContext)
+  const { setAToken, backendUrl } = useContext(AdminContext)
+  const { setDToken } = useContext(DoctorContext)
 
   const onSubmitHandler = async(event) => {
     event.preventDefault()
 
     try {
-
-      if(state === 'Admin'){
-          const {data} = await axios.post(backendUrl + '/api/admin/login',{email,password})
-          if(data.success){
-            localStorage.setItem('aToken',data.token)
+      if (state === 'Admin') {
+          const { data } = await axios.post(backendUrl + '/api/admin/login', { email, password })
+          if (data.success) {
+            localStorage.setItem('aToken', data.token)
             setAToken(data.token)
+            toast.success("Đăng nhập thành công!")
           }
-          else{
+          else {
             toast.error(data.message)
           }
       }
-      else{
-          const {data} = await axios.post(backendUrl + '/api/doctor/login',{email,password})
-          if(data.success){
-            localStorage.setItem('dToken',data.token)
+      else {
+          const { data } = await axios.post(backendUrl + '/api/doctor/login', { email, password })
+          if (data.success) {
+            localStorage.setItem('dToken', data.token)
             setDToken(data.token)
-            console.log(data.token)
+            toast.success("Đăng nhập thành công!")
           }
-          else{
+          else {
             toast.error(data.message)
           }
       }
     } catch (error) {
-      
+      console.log(error)
+      toast.error("Đã xảy ra lỗi kết nối, vui lòng thử lại!")
     }
   }
+
+  // Hàm helper để reset lỗi khi user bắt đầu gõ lại
+  const handleInput = (e) => e.target.setCustomValidity('');
 
   return (
     <form onSubmit={onSubmitHandler} className='min-h-[80vh] flex items-center'>
@@ -55,19 +56,51 @@ const Login = () => {
         <p className='text-2xl font-semibold m-auto'>
             Đăng Nhập <span className='text-primary'>{state === 'Admin' ? 'Quản Trị Viên' : 'Bác Sĩ'}</span>
         </p>
-        <div className='w-full' >
+        
+        <div className='w-full'>
           <p>Email</p>
-          <input onChange={(e)=>setEmail(e.target.value)} value={email} className='border border-[#DADADA] rounded w-full p-2 mt-1' type="email" required />
+          <input 
+            onChange={(e) => setEmail(e.target.value)} 
+            value={email} 
+            className='border border-[#DADADA] rounded w-full p-2 mt-1 outline-primary' 
+            type="email" 
+            placeholder="Nhập email của bạn" 
+            required 
+            onInvalid={(e) => {
+                if (e.target.validity.valueMissing) {
+                    e.target.setCustomValidity('Vui lòng nhập email');
+                } else if (e.target.validity.typeMismatch) {
+                    e.target.setCustomValidity('Email không đúng định dạng');
+                }
+            }}
+            onInput={handleInput}
+            // ---------------------
+          />
         </div>
+        
         <div className='w-full'> 
           <p>Mật khẩu</p>
-          <input onChange={(e)=>setPassword(e.target.value)} value={password} className='border border-[#DADADA] rounded w-full p-2 mt-1' type="password" required />
+          <input 
+            onChange={(e) => setPassword(e.target.value)} 
+            value={password} 
+            className='border border-[#DADADA] rounded w-full p-2 mt-1 outline-primary' 
+            type="password" 
+            placeholder="Nhập mật khẩu" 
+            required 
+            onInvalid={(e) => e.target.setCustomValidity('Vui lòng nhập mật khẩu')}
+            onInput={handleInput}
+            
+          />
         </div>
-        <button className='bg-primary text-white w-full py-2 rounded-md text-base'>Đăng nhập</button>
+        
+        <button className='bg-primary text-white w-full py-2 rounded-md text-base hover:bg-primary/90 transition-all'>
+            Đăng nhập
+        </button>
+        
         {
           state === 'Admin' 
-          ? <p>Đăng nhập dành cho Bác sĩ? <span className='text-primary underline cursor-pointer' onClick={()=>setState('Doctor')}>Tại đây</span></p>
-          : <p>Đăng nhập dành cho Admin?  <span className='text-primary underline cursor-pointer' onClick={()=>setState('Admin')}>Tại đây</span></p>
+          ? <p>Đăng nhập dành cho Bác sĩ? <span className='text-primary underline cursor-pointer' onClick={() => setState('Doctor')}>Tại đây</span></p>
+          : <p>Đăng nhập dành cho Admin? <span className='text-primary underline cursor-pointer' onClick={() => setState('Admin')}>Tại đây</span></p>
         }
       </div>
     </form>

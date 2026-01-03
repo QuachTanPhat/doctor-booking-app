@@ -49,18 +49,34 @@ const AppContextProvider = (props) => {
 
     // 3. Hàm lấy User Profile
     const loadUserProfileData = async () => {
-        try {
-            const { data } = await axios.get(backendUrl + '/api/user/get-profile', { headers: { token } })
-            if (data.success) {
-                setUserData(data.userData)
-            } else {
-                toast.error(data.message)
-            }
-        } catch (error) {
-            console.log(error)
-            toast.error(error.message)
+    try {
+      const { data } = await axios.get(backendUrl + "/api/user/get-profile", {
+        headers: { token },
+      });
+
+      if (data.success) {
+        setUserData(data.userData);
+      } else {
+        // --- LOGIC ĐÁ NGƯỜI DÙNG RA KHI BỊ BLOCK ---
+        if (data.message === 'Tài khoản đã bị khóa bởi Admin!') {
+            localStorage.setItem("blocked_msg", "true");
+           
+            
+            // 1. Xóa sạch dữ liệu
+            setToken(false);
+            localStorage.removeItem("token");
+            setUserData(false);
+            
+            window.location.href = '/login'; 
+        } else {
+            toast.error(data.message);
         }
+      }
+    } catch (error) {
+      console.log(error);
+      // Không toast lỗi ở đây để tránh spam thông báo mỗi 10s nếu mất mạng
     }
+  };
 
     // 4. Hàm lấy danh sách Lịch hẹn của User
     const getUserAppointments = async () => {
@@ -92,6 +108,15 @@ const AppContextProvider = (props) => {
         }
     }, [token])
 
+    // useEffect(() => {
+    //     if (token) {
+    //         const timer = setInterval(() => {
+    //             loadUserProfileData(); // Gọi hàm này để check trạng thái
+    //         }, 5000); // 5 giây check 1 lần
+
+    //         return () => clearInterval(timer);
+    //     }
+    // }, [token]);
     // 7. SOCKET IO (Realtime)
     useEffect(() => {
         // Kết nối socket
@@ -111,7 +136,25 @@ const AppContextProvider = (props) => {
             getDoctorsData(); 
            
         });
+        socket.on('doctor-added', (newDoctor) => {
+            setDoctors((prev) => [...prev, newDoctor]);
+            toast.info(`👨‍⚕️ Bác sĩ ${newDoctor.name} vừa gia nhập hệ thống!`);
+        });
 
+        // B. Sự kiện: Thêm chuyên khoa mới
+        socket.on('speciality-added', (newSpeciality) => {
+            setSpecialities((prev) => [...prev, newSpeciality]);
+            // toast.info(`🏥 Chuyên khoa mới: ${newSpeciality.name}`);
+        });
+
+        // C. Sự kiện: Cập nhật chuyên khoa (Sửa tên/ảnh)
+        socket.on('speciality-updated', (updatedSpeciality) => {
+            setSpecialities((prev) => 
+                prev.map((item) => 
+                    item._id === updatedSpeciality._id ? updatedSpeciality : item
+                )
+            );
+        });
         return () => {
             socket.disconnect();
         }

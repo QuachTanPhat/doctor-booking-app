@@ -47,6 +47,9 @@ const SpecialityModal = ({ onClose, initialData }) => {
         }
     };
 
+    // Hàm helper reset lỗi khi nhập
+    const handleInput = (e) => e.target.setCustomValidity('');
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
             <form onSubmit={onSubmitHandler} className="bg-white rounded-xl shadow-xl w-full max-w-lg animate-fadeIn">
@@ -76,12 +79,32 @@ const SpecialityModal = ({ onClose, initialData }) => {
 
                     <div className="flex flex-col gap-1.5">
                         <label className="text-sm font-medium text-gray-700">Tên chuyên khoa <span className="text-red-500">*</span></label>
-                        <input onChange={(e) => setName(e.target.value)} value={name} className="border border-gray-300 rounded-lg px-3 py-2 outline-primary focus:ring-2 focus:ring-primary/20 transition-all" type="text" placeholder="Ví dụ: Tim mạch" required />
+                        <input 
+                            onChange={(e) => setName(e.target.value)} 
+                            value={name} 
+                            className="border border-gray-300 rounded-lg px-3 py-2 outline-primary focus:ring-2 focus:ring-primary/20 transition-all" 
+                            type="text" 
+                            placeholder="Ví dụ: Tim mạch" 
+                            required 
+                           
+                            onInvalid={(e) => e.target.setCustomValidity('Vui lòng nhập tên chuyên khoa')}
+                            onInput={handleInput}
+                            
+                        />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-medium text-gray-700">Mô tả ngắn</label>
-                        <textarea onChange={(e) => setDescription(e.target.value)} value={description} className="border border-gray-300 rounded-lg px-3 py-2 outline-primary focus:ring-2 focus:ring-primary/20 transition-all" rows={3} placeholder="Mô tả về chuyên khoa..." />
+                        <label className="text-sm font-medium text-gray-700">Mô tả</label>
+                        <textarea 
+                            onChange={(e) => setDescription(e.target.value)} 
+                            value={description} 
+                            className="border border-gray-300 rounded-lg px-3 py-2 outline-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none" 
+                            rows={3} 
+                            placeholder="Mô tả về chuyên khoa..." 
+                            required
+                            onInvalid={(e) => e.target.setCustomValidity('Vui lòng nhập mô tả')}
+                            onInput={handleInput}
+                        />
                     </div>
                 </div>
 

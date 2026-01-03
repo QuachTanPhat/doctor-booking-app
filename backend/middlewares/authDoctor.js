@@ -6,7 +6,7 @@ const authDoctor = async (req, res, next) => {
         // 1. Lấy token từ header (Frontend sẽ gửi lên với key là 'atoken')
         const { dtoken } = req.headers;
         if (!dtoken) {
-            return res.json({ success: false, message: "Not Authorized Login Again" })
+            return res.json({ success: false, message: "Không có quyền truy cập. Vui lòng đăng nhập lại." })
         }
 
         // 3. Giải mã token

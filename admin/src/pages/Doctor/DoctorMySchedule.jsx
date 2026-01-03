@@ -1,19 +1,18 @@
 import React, { useContext, useState, useEffect } from "react";
-import { AdminContext } from "../../context/AdminContext";
+import { DoctorContext } from "../../context/DoctorContext";
 import { toast } from "react-toastify";
 import axios from "axios";
 
-const DoctorSchedule = () => {
-  const { doctors, aToken, getAllDoctors, backendUrl } = useContext(AdminContext);
+const DoctorMySchedule = () => {
+  const { dToken, backendUrl, getDoctorProfile, profileData } = useContext(DoctorContext);
 
-  const [docId, setDocId] = useState("");
   const [slotDate, setSlotDate] = useState("");
   const [selectedSlots, setSelectedSlots] = useState([]);
 
   // --- 1. TẠO SLOT 30 PHÚT (08:00 - 21:00) ---
   const timeSlots = [];
   const startHour = 8; 
-  const endHour = 21; 
+  const endHour = 21;  
 
   for (let i = startHour; i < endHour; i++) {
     for (let j = 0; j < 60; j += 30) {
@@ -21,49 +20,47 @@ const DoctorSchedule = () => {
       const startM = j.toString().padStart(2, "0");
       const timeString = `${startH}:${startM}`;
 
-      const nextDate = new Date();
-      nextDate.setHours(i);
-      nextDate.setMinutes(j + 30);
+      const nextTime = new Date();
+      nextTime.setHours(i);
+      nextTime.setMinutes(j + 30);
+      const endH = nextTime.getHours().toString().padStart(2, "0");
+      const endM = nextTime.getMinutes().toString().padStart(2, "0");
       
-      const endH = nextDate.getHours().toString().padStart(2, "0");
-      const endM = nextDate.getMinutes().toString().padStart(2, "0");
-      const endTimeString = `${endH}:${endM}`;
-
       timeSlots.push({
         time: timeString, 
-        label: `${timeString} - ${endTimeString}`
+        label: `${timeString} - ${endH}:${endM}`
       });
     }
   }
 
+  // --- 2. LOGIC TẢI LỊCH CŨ ---
   useEffect(() => {
-    if (aToken) getAllDoctors();
-  }, [aToken]);
-
-  // --- 2. LOGIC TẢI LỊCH CŨ CỦA BÁC SĨ ---
-  useEffect(() => {
-    if (docId && slotDate && doctors.length > 0) {
-        const docData = doctors.find(doc => doc._id === docId);
-        
+    if (profileData && slotDate) {
         const dateArray = slotDate.split('-');
         const formattedDate = `${dateArray[2]}_${dateArray[1]}_${dateArray[0]}`;
 
-        if (docData && docData.slots_scheduled && docData.slots_scheduled[formattedDate]) {
-            const savedSlots = docData.slots_scheduled[formattedDate].map(slot => slot.time);
+        // ĐỌC TỪ slots_scheduled
+        if (profileData.slots_scheduled && profileData.slots_scheduled[formattedDate]) {
+            const savedSlots = profileData.slots_scheduled[formattedDate].map(slot => slot.time);
             setSelectedSlots(savedSlots);
         } else {
             setSelectedSlots([]);
         }
     }
-  }, [docId, slotDate, doctors]);
+  }, [slotDate, profileData]);
+
+  // Load profile khi vào trang
+  useEffect(() => {
+      if(dToken) getDoctorProfile();
+  }, [dToken])
 
   // --- 3. HÀM KIỂM TRA THỜI GIAN ĐÃ QUA (MỚI THÊM) ---
   const isPastTime = (timeString) => {
-    if (!slotDate) return true; // Chưa chọn ngày thì coi như disable hết để tránh lỗi
+    if (!slotDate) return true; // Chưa chọn ngày thì disable hết
 
     const currentDate = new Date();
     const [year, month, day] = slotDate.split('-').map(Number);
-    const selectedDateObj = new Date(year, month - 1, day); // Tháng bắt đầu từ 0
+    const selectedDateObj = new Date(year, month - 1, day);
 
     // Nếu ngày chọn < ngày hiện tại (xét theo ngày) -> Đã qua
     if (selectedDateObj.setHours(0,0,0,0) < currentDate.setHours(0,0,0,0)) {
@@ -79,7 +76,6 @@ const DoctorSchedule = () => {
         return slotTimeObj < new Date();
     }
 
-    // Nếu ngày chọn là tương lai -> Không phải quá khứ
     return false;
   }
 
@@ -97,10 +93,9 @@ const DoctorSchedule = () => {
   };
 
   const onSubmitHandler = async () => {
-        if (!docId) return toast.error("Vui lòng chọn bác sĩ")
         if (!slotDate) return toast.error("Vui lòng chọn ngày")
         
-        // Cảnh báo lần cuối khi submit nếu có slot quá khứ (phòng trường hợp treo máy lâu)
+        // // Cảnh báo nếu có slot quá khứ
         // const hasPastSlot = selectedSlots.some(slot => isPastTime(slot));
         // if (hasPastSlot) {
         //      if(!window.confirm("Cảnh báo: Bạn đang lưu một số khung giờ đã trôi qua. Người dùng sẽ không thấy các giờ này. Bạn có muốn tiếp tục?")) {
@@ -112,45 +107,36 @@ const DoctorSchedule = () => {
             const dateArray = slotDate.split('-'); 
             const formattedDate = `${dateArray[2]}_${dateArray[1]}_${dateArray[0]}`;
 
-            const { data } = await axios.post(backendUrl + '/api/admin/add-schedule', 
-                { docId, slotDate: formattedDate, slotTimes: selectedSlots }, 
-                { headers: { aToken } }
+            const { data } = await axios.post(backendUrl + '/api/doctor/add-schedule', 
+                { slotDate: formattedDate, slotTimes: selectedSlots }, 
+                { headers: { dToken } } 
             )
 
             if (data.success) {
                 toast.success("Đã cập nhật lịch thành công!")
-                getAllDoctors();
+                getDoctorProfile(); 
             } else {
                 toast.error(data.message)
             }
         } catch (error) {
+            console.log(error);
             toast.error(error.message)
         }
     }
 
   return (
     <div className="m-5 w-full">
-      <p className="mb-4 text-lg font-medium">Thiết lập lịch làm việc (Admin)</p>
+      <p className="mb-4 text-lg font-medium">Quản lý lịch khám bệnh</p>
       <div className="bg-white px-8 py-8 border rounded w-full max-w-4xl">
         
         <div className="mb-4">
-          <p className="mb-2">Chọn bác sĩ</p>
-          <select onChange={(e) => setDocId(e.target.value)} value={docId} className="border rounded px-3 py-2 w-full">
-            <option value="">-- Chọn bác sĩ --</option>
-            {doctors.map((doc) => (
-              <option key={doc._id} value={doc._id}>{doc.name} - {doc.speciality}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="mb-4">
-          <p className="mb-2">Chọn ngày làm việc</p>
+          <p className="mb-2">Chọn ngày đăng ký</p>
           <input 
             type="date" 
             className="border rounded px-3 py-2" 
             value={slotDate} 
             onChange={(e) => setSlotDate(e.target.value)} 
-            min={new Date().toISOString().split("T")[0]} // Chặn chọn ngày cũ ở lịch
+            min={new Date().toISOString().split("T")[0]} // Chặn chọn ngày cũ
           />
         </div>
 
@@ -158,25 +144,25 @@ const DoctorSchedule = () => {
           <p className="mb-2">Chọn khung giờ làm việc</p>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
             {timeSlots.map((item, index) => {
-                // Kiểm tra xem slot này có phải quá khứ không
-                const isExpired = isPastTime(item.time);
+               // Logic kiểm tra giờ quá khứ
+               const isExpired = isPastTime(item.time);
 
-                return (
-                  <button
+               return (
+                <button
                     key={index}
                     onClick={() => handleSlotClick(item.time)}
                     disabled={isExpired} // Disable nút nếu đã qua giờ
                     className={`px-2 py-3 border rounded transition-all text-xs font-medium truncate
                         ${isExpired 
-                            ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60" // Style cho nút bị disable
+                            ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60" // Style mờ đi
                             : selectedSlots.includes(item.time)
                                 ? "bg-primary text-white border-primary shadow-md cursor-pointer"
                                 : "bg-white text-gray-700 hover:border-primary hover:bg-gray-50 cursor-pointer"
                         }`}
-                  >
+                >
                     {item.label}
-                  </button>
-                )
+                </button>
+               )
             })}
           </div>
         </div>
@@ -189,4 +175,4 @@ const DoctorSchedule = () => {
   );
 };
 
-export default DoctorSchedule;
+export default DoctorMySchedule;

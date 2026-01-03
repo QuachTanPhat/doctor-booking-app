@@ -1,34 +1,61 @@
-import React, { useContext, useRef, useState } from 'react'
+import React, { useContext, useRef, useState, useEffect } from 'react' // Nhớ import useEffect
 import { assets } from '../assets/assets'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import axios from 'axios'
 import { AppContext } from '../context/AppContext'
+import { io } from 'socket.io-client'
 const Contact = () => {
     const [activeQuestion, setActiveQuestion] = useState(null);
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
     const navigate = useNavigate();
     const { token, setIsChatOpen } = useContext(AppContext);
     const formRef = useRef(null);
+    
+    // 1. KHAI BÁO STATE (Đúng)
+    const [faqs, setFaqs] = useState([]); 
 
-    const faqs = [
-        { question: "Làm thế nào để đặt lịch khám?", answer: "Bạn có thể đặt lịch dễ dàng ngay trên website bằng cách chọn bác sĩ và khung giờ phù hợp." },
-        { question: "Giờ làm việc của phòng khám là khi nào?", answer: "Chúng tôi mở cửa từ Thứ 2 đến Thứ 6 (8:00 - 17:00), và Thứ 7 (8:00 - 12:00)." },
-        { question: "Phòng khám có chấp nhận bảo hiểm y tế không?", answer: "Có, chúng tôi chấp nhận hầu hết các loại bảo hiểm y tế hiện hành. Vui lòng liên hệ lễ tân để biết chi tiết." },
-        { question: "Tôi có thể hủy hoặc đổi lịch khám không?", answer: "Có, bạn có thể hủy hoặc dời lịch trước 24h thông qua trang quản lý tài khoản cá nhân." }
-    ];
+    // 2. XÓA BỎ MẢNG "const faqs = [...]" CỨNG Ở ĐÂY ĐI NHÉ!
+    // (Vì chúng ta sẽ lấy dữ liệu từ Backend đổ vào state ở trên)
+
+    // 3. Hàm lấy dữ liệu
+    const getFaqs = async () => {
+        try {
+            const { data } = await axios.get(backendUrl + '/api/admin/all-faqs'); 
+            if (data.success) {
+                // Nếu DB chưa có câu hỏi nào thì faqs sẽ rỗng, không sao cả
+                setFaqs(data.faqs);
+            }
+        } catch (error) {
+            console.log(error);
+            // Không cần toast lỗi ở đây để tránh làm phiền user nếu chỉ là lỗi hiển thị
+        }
+    }
+
+    useEffect(() => {
+        getFaqs();
+        const socket = io(backendUrl);
+        socket.on('faq-updated', () => {
+            getFaqs(); // Gọi lại API để cập nhật danh sách mới nhất
+        });
+        return () => {
+            socket.disconnect();
+        }
+    }, [backendUrl]);
 
     const toggleQuestion = (index) => {
         setActiveQuestion(activeQuestion === index ? null : index);
     };
+
+    // ... (Các phần handleMapClick, handleEmailClick, handleSubmit giữ nguyên) ...
     const handleMapClick = () => {
-    
         window.open('https://www.google.com/maps/search/?api=1&query=Bệnh+viện+đa+khoa+Nha+Trang+Khánh+Hòa', '_blank');
     };
 
     const handleEmailClick = () => {
         formRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
+
     const [formData, setFormData] = useState({
         name: '', email: '', phone: '', subject: 'Tư vấn chung', message: ''
     });
@@ -58,6 +85,7 @@ const Contact = () => {
             toast.error("Gửi thất bại. Vui lòng thử lại sau.");
         }
     };
+
     const handleChatClick = () => {
         if (token) {
             setIsChatOpen(true);
@@ -69,6 +97,7 @@ const Contact = () => {
 
     return (
         <div className='pb-20'>
+            {/* ... (Phần Header giữ nguyên) ... */}
             <div className='text-center pt-14 pb-10'>
                 <div className='inline-block px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-sm font-semibold mb-4'>
                     ● Chúng tôi luôn ở đây để hỗ trợ
@@ -81,9 +110,9 @@ const Contact = () => {
                 </p>
             </div>
 
+            {/* ... (Phần 3 ô thông tin liên hệ giữ nguyên) ... */}
             <div className='max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 mb-20'>
-               
-                <div className='bg-white p-8 rounded-2xl shadow-lg border border-gray-100 hover:-translate-y-1 transition-all duration-300'>
+               <div className='bg-white p-8 rounded-2xl shadow-lg border border-gray-100 hover:-translate-y-1 transition-all duration-300'>
                     <div className='w-14 h-14 bg-blue-500 rounded-2xl flex items-center justify-center text-white mb-6 shadow-blue-200 shadow-lg'>
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-7">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
@@ -115,6 +144,8 @@ const Contact = () => {
                     </button>
                 </div>
             </div>
+
+            {/* ... (Phần Form gửi tin nhắn giữ nguyên) ... */}
             <div className='max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-2 gap-12 mb-24'>
                 <div className='flex flex-col gap-8'>
                     <img className='w-full rounded-2xl object-cover h-[300px] lg:h-[400px] shadow-lg' src={assets.contact_image} alt="Doctor" />
@@ -138,7 +169,7 @@ const Contact = () => {
                             </div>
                             <div className='flex justify-between pt-2'>
                                 <span className='text-gray-800 font-medium'>Chủ Nhật</span>
-                                <span className='font-medium text-red-500'>Cấp Cứu Only</span>
+                                <span className='font-medium text-red-500'>Không làm việc</span>
                             </div>
                         </div>
                     </div>
@@ -148,12 +179,10 @@ const Contact = () => {
                     <form onSubmit={handleSubmit} className='flex flex-col gap-6'>
                         <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
                             <input name="name" value={formData.name} onChange={handleInputChange} type="text" placeholder='Họ và tên của bạn' className='border border-gray-300 rounded-lg p-3 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500' required />
-                          
                             <input name="email" value={formData.email} onChange={handleInputChange} type="email" placeholder='Địa chỉ Email' className='border border-gray-300 rounded-lg p-3 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500' required />
                         </div>
                         <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
                             <input name="phone" value={formData.phone} onChange={handleInputChange} type="tel" placeholder='Số điện thoại' className='border border-gray-300 rounded-lg p-3 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500' />
-                     
                             <select name="subject" value={formData.subject} onChange={handleInputChange} className='border border-gray-300 rounded-lg p-3 outline-none focus:border-blue-500 bg-white'>
                                 <option value="Tư vấn chung">Tư vấn chung</option>
                                 <option value="Đặt lịch hẹn">Đặt lịch hẹn</option>
@@ -177,28 +206,34 @@ const Contact = () => {
                 </div>
 
                 <div className='flex flex-col gap-4'>
-                    {faqs.map((faq, index) => (
-                        <div key={index} className='bg-white border border-gray-200 rounded-xl overflow-hidden'>
-                            <button 
-                                onClick={() => toggleQuestion(index)}
-                                className='w-full flex justify-between items-center p-6 text-left focus:outline-none hover:bg-gray-50 transition-colors'
-                            >
-                                <span className='font-semibold text-gray-800 text-lg'>{faq.question}</span>
-                                <div className={`w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center transition-transform duration-300 ${activeQuestion === index ? 'rotate-180' : ''}`}>
-                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-4">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                                    </svg>
+                    {/* KIỂM TRA MẢNG FAQS RỖNG HAY KHÔNG TRƯỚC KHI MAP */}
+                    {faqs && faqs.length > 0 ? (
+                        faqs.map((faq, index) => (
+                            <div key={index} className='bg-white border border-gray-200 rounded-xl overflow-hidden'>
+                                <button 
+                                    onClick={() => toggleQuestion(index)}
+                                    className='w-full flex justify-between items-center p-6 text-left focus:outline-none hover:bg-gray-50 transition-colors'
+                                >
+                                    <span className='font-semibold text-gray-800 text-lg'>{faq.question}</span>
+                                    <div className={`w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center transition-transform duration-300 ${activeQuestion === index ? 'rotate-180' : ''}`}>
+                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-4">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                         </svg>
+                                    </div>
+                                </button>
+                                
+                                <div className={`transition-all duration-300 ease-in-out ${activeQuestion === index ? 'max-h-40 opacity-100 p-6 pt-0' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+                                    <p className='text-gray-600 leading-relaxed'>{faq.answer}</p>
                                 </div>
-                            </button>
-                            
-                            <div className={`transition-all duration-300 ease-in-out ${activeQuestion === index ? 'max-h-40 opacity-100 p-6 pt-0' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-                                <p className='text-gray-600 leading-relaxed'>{faq.answer}</p>
                             </div>
-                        </div>
-                    ))}
+                        ))
+                    ) : (
+                        <p className="text-center text-gray-500">Đang cập nhật câu hỏi...</p>
+                    )}
                 </div>
             </div>
 
+            {/* ... (Phần Nút cấp cứu giữ nguyên) ... */}
             <div className='max-w-6xl mx-auto px-4'>
                 <div className='bg-blue-50 rounded-2xl p-8 md:p-12 flex flex-col items-center text-center'>
                     <h2 className='text-2xl font-bold text-gray-800 mb-2'>Cần Hỗ Trợ Khẩn Cấp?</h2>

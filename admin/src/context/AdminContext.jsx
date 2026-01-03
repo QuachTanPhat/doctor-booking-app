@@ -29,7 +29,23 @@ const AdminContextProvider = (props) => {
         });
         return () => { socket.disconnect(); }
     }, [backendUrl, aToken])
-
+    const addDoctor = async (formData) => {
+        try {
+            const { data } = await axios.post(backendUrl + '/api/admin/add-doctor', formData, { headers: { aToken } })
+            
+            if (data.success) {
+                toast.success(data.message)
+                getAllDoctors() // Load lại danh sách ngay lập tức
+                return true; // Trả về true để bên Modal biết mà đóng lại
+            } else {
+                toast.error(data.message)
+                return false;
+            }
+        } catch (error) {
+            toast.error(error.message)
+            return false;
+        }
+    }
     const getAllDoctors = async()=>{
         try {
             const {data} = await axios.post(backendUrl + '/api/admin/all-doctors', {}, {headers:{aToken}})
@@ -142,7 +158,21 @@ const AdminContextProvider = (props) => {
             toast.error(error.message)
         }
     }
-
+    const deleteUser = async (userId) => {
+        try {
+            // Gọi API xóa (nhớ Backend phải có route này và dùng logic Soft Delete hoặc Hard Delete tùy bạn chọn ở bước trước)
+            const { data } = await axios.post(backendUrl + '/api/admin/delete-user', { id: userId }, { headers: { aToken } })
+            
+            if (data.success) {
+                toast.success(data.message)
+                getAllUsers() // Load lại danh sách ngay lập tức
+            } else {
+                toast.error(data.message)
+            }
+        } catch (error) {
+            toast.error(error.message)
+        }
+    }
     // --- HẾT PHẦN BỔ SUNG ---
 
     const getAllSpecialities = async () => {
@@ -282,12 +312,14 @@ const AdminContextProvider = (props) => {
         addSpeciality,
         updateSpeciality,
         deleteSpeciality,
+        addDoctor,
         deleteDoctor,
         updateDoctor, 
         completeAppointment, 
         deleteAppointment,
         approveAppointment,
-        users, getAllUsers, changeUserStatus
+        users, getAllUsers, changeUserStatus,
+        deleteUser
     }
 
     return(
