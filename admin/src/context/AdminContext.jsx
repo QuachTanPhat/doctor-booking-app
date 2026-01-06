@@ -8,7 +8,7 @@ import { io } from "socket.io-client"; // Nhớ import io
 export const AdminContext = createContext()
 
 const AdminContextProvider = (props) => {
-    const [aToken, setAToken] = useState(localStorage.getItem('aToken')? localStorage.getItem('aToken'):'')
+    const [aToken, setAToken] = useState(localStorage.getItem('aToken') ? localStorage.getItem('aToken') : '')
     const [doctors, setDoctors] = useState([])
     const [appointments, setAppointments] = useState([])
     const [dashData, setDashData] = useState(false)
@@ -25,14 +25,14 @@ const AdminContextProvider = (props) => {
             }
         });
         socket.on('doctor-updated', () => {
-             if (aToken) getAllDoctors();
+            if (aToken) getAllDoctors();
         });
         return () => { socket.disconnect(); }
     }, [backendUrl, aToken])
     const addDoctor = async (formData) => {
         try {
             const { data } = await axios.post(backendUrl + '/api/admin/add-doctor', formData, { headers: { aToken } })
-            
+
             if (data.success) {
                 toast.success(data.message)
                 getAllDoctors() // Load lại danh sách ngay lập tức
@@ -46,12 +46,12 @@ const AdminContextProvider = (props) => {
             return false;
         }
     }
-    const getAllDoctors = async()=>{
+    const getAllDoctors = async () => {
         try {
-            const {data} = await axios.post(backendUrl + '/api/admin/all-doctors', {}, {headers:{aToken}})
-            if(data.success){
+            const { data } = await axios.post(backendUrl + '/api/admin/all-doctors', {}, { headers: { aToken } })
+            if (data.success) {
                 setDoctors(data.doctors)
-            } else{
+            } else {
                 toast.error(data.message)
             }
         } catch (error) {
@@ -61,38 +61,51 @@ const AdminContextProvider = (props) => {
 
     const changeAvailability = async (docId) => {
         try {
-            const {data} = await axios.post(backendUrl + '/api/admin/change-availability', {docId}, {headers:{aToken}})
-            if(data.success){
+            const { data } = await axios.post(backendUrl + '/api/admin/change-availability', { docId }, { headers: { aToken } })
+            if (data.success) {
                 toast.success(data.message)
                 getAllDoctors()
-            } else{
-                toast.error(data.message)
-            }
-        } catch (error) {
-            toast.error(error.message)   
-        }
-    }
-
-    const getAllAppointments = async () => {
-        try {
-            const { data } = await axios.get(backendUrl+'/api/admin/appointments',{headers:{aToken}})
-            if(data.success){
-                setAppointments(data.appointments.reverse()) // Reverse để mới nhất lên đầu
-            } else{
+            } else {
                 toast.error(data.message)
             }
         } catch (error) {
             toast.error(error.message)
         }
-    }   
+    }
+
+    const changeBlockStatus = async (docId) => {
+        try {
+            const { data } = await axios.post(backendUrl + '/api/admin/change-doctor-block', { docId }, { headers: { aToken } })
+            if (data.success) {
+                toast.success(data.message);
+                getAllDoctors(); // Load lại danh sách
+            } else {
+                toast.error(data.message);
+            }
+        } catch (error) {
+            toast.error(error.message);
+        }
+    }
+    const getAllAppointments = async () => {
+        try {
+            const { data } = await axios.get(backendUrl + '/api/admin/appointments', { headers: { aToken } })
+            if (data.success) {
+                setAppointments(data.appointments.reverse()) // Reverse để mới nhất lên đầu
+            } else {
+                toast.error(data.message)
+            }
+        } catch (error) {
+            toast.error(error.message)
+        }
+    }
 
     const cancelAppointment = async (appointmentId) => {
         try {
-            const {data} = await axios.post(backendUrl +'/api/admin/cancel-appointment',{appointmentId},{headers:{aToken}})
-            if(data.success){
+            const { data } = await axios.post(backendUrl + '/api/admin/cancel-appointment', { appointmentId }, { headers: { aToken } })
+            if (data.success) {
                 toast.success(data.message)
                 getAllAppointments()
-            } else{
+            } else {
                 toast.error(data.message)
             }
         } catch (error) {
@@ -158,11 +171,12 @@ const AdminContextProvider = (props) => {
             toast.error(error.message)
         }
     }
+
     const deleteUser = async (userId) => {
         try {
             // Gọi API xóa (nhớ Backend phải có route này và dùng logic Soft Delete hoặc Hard Delete tùy bạn chọn ở bước trước)
             const { data } = await axios.post(backendUrl + '/api/admin/delete-user', { id: userId }, { headers: { aToken } })
-            
+
             if (data.success) {
                 toast.success(data.message)
                 getAllUsers() // Load lại danh sách ngay lập tức
@@ -218,7 +232,7 @@ const AdminContextProvider = (props) => {
             const { data } = await axios.post(backendUrl + '/api/admin/update-speciality', formData, { headers: { aToken } });
             if (data.success) {
                 toast.success(data.message);
-                getAllSpecialities(); 
+                getAllSpecialities();
                 return true;
             } else {
                 toast.error(data.message);
@@ -234,7 +248,7 @@ const AdminContextProvider = (props) => {
             const { data } = await axios.post(backendUrl + '/api/admin/delete-speciality', { id }, { headers: { aToken } })
             if (data.success) {
                 toast.success(data.message)
-                getAllSpecialities() 
+                getAllSpecialities()
             } else {
                 toast.error(data.message)
             }
@@ -245,10 +259,10 @@ const AdminContextProvider = (props) => {
 
     const getDashData = async () => {
         try {
-            const { data } = await axios.get(backendUrl + '/api/admin/dashboard', {headers:{aToken}})
-            if(data.success){
+            const { data } = await axios.get(backendUrl + '/api/admin/dashboard', { headers: { aToken } })
+            if (data.success) {
                 setDashData(data.dashData)
-            } else{
+            } else {
                 toast.error(data.message)
             }
         } catch (error) {
@@ -261,7 +275,7 @@ const AdminContextProvider = (props) => {
             const { data } = await axios.post(backendUrl + '/api/admin/update-doctor', formData, { headers: { aToken } });
             if (data.success) {
                 toast.success(data.message);
-                getAllDoctors(); 
+                getAllDoctors();
                 return true;
             } else {
                 toast.error(data.message);
@@ -278,7 +292,7 @@ const AdminContextProvider = (props) => {
             const { data } = await axios.post(backendUrl + '/api/admin/delete-doctor', { docId }, { headers: { aToken } })
             if (data.success) {
                 toast.success(data.message)
-                getAllDoctors() 
+                getAllDoctors()
             } else {
                 toast.error(data.message)
             }
@@ -300,7 +314,7 @@ const AdminContextProvider = (props) => {
         }
     }
     const value = {
-        aToken, setAToken,  
+        aToken, setAToken,
         backendUrl, doctors,
         getAllDoctors, changeAvailability,
         appointments, setAppointments,
@@ -314,15 +328,16 @@ const AdminContextProvider = (props) => {
         deleteSpeciality,
         addDoctor,
         deleteDoctor,
-        updateDoctor, 
-        completeAppointment, 
+        updateDoctor,
+        changeBlockStatus,
+        completeAppointment,
         deleteAppointment,
         approveAppointment,
         users, getAllUsers, changeUserStatus,
         deleteUser
     }
 
-    return(
+    return (
         <AdminContext.Provider value={value}>
             {props.children}
         </AdminContext.Provider>

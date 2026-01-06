@@ -1,5 +1,5 @@
 import express from 'express'
-import { resgiterUser, loginUser, getProfile, updateProfile,
+import { resgiterUser, loginUser, changePassword, getProfile, updateProfile,
      getAllSpecialities, bookAppointment, listAppointment, cancelAppointment, sendContactEmail, googleLogin, sendResetOtp, resetPassword } from '../controllers/userController.js'
 import authUser from '../middlewares/authUser.js'
 import upload from '../middlewares/multer.js'
@@ -8,6 +8,7 @@ const userRouter = express.Router()
 
 userRouter.post('/register', resgiterUser)
 userRouter.post('/login', loginUser)
+userRouter.post('/change-password', authUser, changePassword);
 userRouter.get('/get-profile', authUser, getProfile)
 userRouter.post('/update-profile', upload.single('image'), authUser ,updateProfile)
 userRouter.post('/book-appointment',authUser,bookAppointment)

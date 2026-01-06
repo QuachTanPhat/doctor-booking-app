@@ -1,16 +1,37 @@
 import jwt from 'jsonwebtoken'
+import doctorModel from '../models/doctorModel.js' 
 
-// doctor authentication middleware
 const authDoctor = async (req, res, next) => {
     try {
-        // 1. Lấy token từ header (Frontend sẽ gửi lên với key là 'atoken')
+       
         const { dtoken } = req.headers;
         if (!dtoken) {
             return res.json({ success: false, message: "Không có quyền truy cập. Vui lòng đăng nhập lại." })
         }
 
-        // 3. Giải mã token
+        
         const token_decode = jwt.verify(dtoken, process.env.JWT_SECRET)
+
+        const doctor = await doctorModel.findById(token_decode.id);
+
+        if (!doctor) {
+            return res.json({ success: false, message: "Tài khoản bác sĩ không tồn tại" });
+        }
+
+        if (doctor.isBlocked) {
+            return res.json({ 
+                success: false, 
+                message: "Tài khoản bác sĩ đã bị khóa. Vui lòng liên hệ Admin.", 
+            }); 
+        }
+
+        if (doctor.isDeleted) {
+            return res.json({ 
+                success: false, 
+                message: 'Tài khoản đã bị xoá khỏi hệ thống' 
+            }); 
+        }
+
         if (!req.body) {
             req.body = {} 
         }

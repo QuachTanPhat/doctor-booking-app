@@ -4,8 +4,10 @@ import DoctorModal from './DoctorModal';
 import { AppContext } from '../../context/AppContext';
 
 const DoctorsList = () => {
-  const { doctors, aToken, getAllDoctors, changeAvailability, deleteDoctor } = useContext(AdminContext);
+  // 1. Lấy đủ các hàm từ Context
+  const { doctors, aToken, getAllDoctors, changeAvailability, deleteDoctor, changeDoctorBlock } = useContext(AdminContext);
   const { currency } = useContext(AppContext)
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState(null);
@@ -13,18 +15,19 @@ const DoctorsList = () => {
 
   // --- STATE PHÂN TRANG ---
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10; // Số bác sĩ mỗi trang
+  const itemsPerPage = 10; 
 
   useEffect(() => {
     if (aToken) getAllDoctors();
   }, [aToken]);
 
-  // Hàm Format Ngày
+  // --- 2. ĐÂY LÀ HÀM BẠN ĐANG BỊ THIẾU (FORMAT DATE) ---
   const formatDate = (isoString) => {
     if (!isoString) return '--';
     const date = new Date(isoString);
     return date.toLocaleTimeString('vi-VN', { hour12: false }) + ' ' + date.toLocaleDateString('vi-VN');
   }
+  // -----------------------------------------------------
 
   const handleDelete = (id) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa bác sĩ này không?")) {
@@ -44,14 +47,12 @@ const DoctorsList = () => {
     setOpenMenuId(null);
   };
 
-  // --- LOGIC LỌC DỮ LIỆU ---
   const filteredDoctors = doctors.filter(doc =>
     doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     doc.speciality.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // --- LOGIC TÍNH TOÁN PHÂN TRANG ---
-  // Reset về trang 1 mỗi khi tìm kiếm thay đổi để tránh lỗi đang ở trang 2 mà tìm ra ít kết quả
+  // Reset trang về 1 khi tìm kiếm
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
@@ -80,24 +81,25 @@ const DoctorsList = () => {
       </div>
 
       <div className='bg-white border rounded-xl shadow-sm overflow-hidden'>
-        {/* --- Header Table --- */}
-        <div className='hidden xl:grid grid-cols-[0.5fr_2fr_1.5fr_1fr_1fr_1.2fr_1.2fr_0.5fr] gap-4 py-4 px-6 bg-gray-50 border-b text-sm font-semibold text-gray-600'>
+        
+        {/* Header Table: 9 Cột */}
+        <div className='hidden xl:grid grid-cols-[0.5fr_2fr_1.5fr_1fr_0.8fr_1fr_1fr_1fr_0.5fr] gap-4 py-4 px-6 bg-gray-50 border-b text-sm font-semibold text-gray-600'>
           <p>#</p>
           <p>Họ và tên</p>
           <p>Chuyên khoa</p>
           <p>Phí khám</p>
-          <p>Trạng thái</p>
+          <p>Lịch khám</p>
           <p>Ngày tạo</p>
           <p>Ngày cập nhật</p>
+          <p className='text-center'>Tài khoản</p>
           <p className='text-center'>#</p>
         </div>
 
-        {/* --- List Items (Đã thay filteredDoctors bằng currentItems) --- */}
-        <div className='min-h-[50vh]'> {/* Thêm min-h để giữ form khi ít item */}
+        {/* List Items */}
+        <div className='min-h-[50vh]'> 
           {currentItems.length > 0 ? currentItems.map((item, index) => (
-            <div key={item._id} className='grid grid-cols-1 xl:grid-cols-[0.5fr_2fr_1.5fr_1fr_1fr_1.2fr_1.2fr_0.5fr] gap-4 py-4 px-6 border-b hover:bg-gray-50 transition-colors items-center text-sm text-gray-700 relative'>
+            <div key={item._id} className='grid grid-cols-1 xl:grid-cols-[0.5fr_2fr_1.5fr_1fr_0.8fr_1fr_1fr_1fr_0.5fr] gap-4 py-4 px-6 border-b hover:bg-gray-50 transition-colors items-center text-sm text-gray-700 relative'>
 
-              {/* Tính số thứ tự chính xác dựa trên trang */}
               <p className='hidden xl:block text-gray-500'>#{indexOfFirstItem + index + 1}</p>
 
               <div className='flex items-center gap-3'>
@@ -109,18 +111,43 @@ const DoctorsList = () => {
               </div>
 
               <p className='hidden xl:block'>{item.speciality}</p>
+              
               <p className='font-medium text-gray-900'>
                 {new Intl.NumberFormat('vi-VN').format(item.fees)} {currency}
               </p>
 
+              {/* Checkbox Sẵn sàng/Nghỉ */}
               <div className='flex items-center gap-2'>
-                <input onChange={() => changeAvailability(item._id)} type="checkbox" checked={item.available} className='w-4 h-4 cursor-pointer accent-primary' />
-                <span className={item.available ? 'text-green-600 font-medium' : 'text-gray-400'}>{item.available ? 'Sẵn sàng' : 'Nghỉ'}</span>
+                <input 
+                    onChange={() => changeAvailability(item._id)} 
+                    type="checkbox" 
+                    checked={item.available} 
+                    disabled={item.isBlocked} 
+                    className='w-4 h-4 cursor-pointer accent-primary disabled:cursor-not-allowed' 
+                />
+                <span className={item.available ? 'text-green-600 font-medium' : 'text-gray-400'}>
+                    {item.available ? 'Sẵn sàng' : 'Nghỉ'}
+                </span>
               </div>
 
+              {/* Gọi hàm formatDate ở đây (đã định nghĩa ở trên) */}
               <p className='hidden xl:block text-xs text-gray-500'>{formatDate(item.createdAt)}</p>
               <p className='hidden xl:block text-xs text-gray-500'>{formatDate(item.updatedAt)}</p>
 
+              {/* Nút Block/Active */}
+              <div className='flex justify-center'>
+                 {item.isBlocked ? (
+                      <button onClick={() => changeDoctorBlock(item._id)} className='px-3 py-1 bg-red-100 text-red-600 rounded-full text-xs font-medium border border-red-200 hover:bg-red-200 transition-colors w-24'>
+                         Đã khoá
+                      </button>
+                  ) : (
+                      <button onClick={() => changeDoctorBlock(item._id)} className='px-3 py-1 bg-green-100 text-green-600 rounded-full text-xs font-medium border border-green-200 hover:bg-green-200 transition-colors w-24'>
+                         Hoạt động
+                      </button>
+                  )}
+              </div>
+
+              {/* Menu Thao tác */}
               <div className='relative action-menu-container flex justify-center'>
                 <button onClick={() => setOpenMenuId(openMenuId === item._id ? null : item._id)} className='p-2 rounded-full hover:bg-gray-200 text-gray-500 transition-all'>
                   ...
@@ -140,7 +167,7 @@ const DoctorsList = () => {
           )}
         </div>
 
-        {/* --- FOOTER: PHÂN TRANG (MỚI THÊM) --- */}
+        {/* Footer Phân trang */}
         <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
           <span className="text-sm text-gray-500">
             Hiển thị {currentItems.length} trên tổng {filteredDoctors.length} bác sĩ

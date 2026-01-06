@@ -15,6 +15,7 @@ const userSchema = new mongoose.Schema(
         isDeleted: { type: Boolean, default: false },
         verifyOtp: { type: String, default: '' },
         verifyOtpExpireAt: { type: Number, default: 0 },
+        isGoogleLogin: { type: Boolean, default: false },
     },{minimize:false,timestamps:true }
 )
 const userModel = mongoose.models.user || mongoose.model('user', userSchema)

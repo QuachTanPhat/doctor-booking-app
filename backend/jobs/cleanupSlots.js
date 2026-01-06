@@ -3,12 +3,11 @@ import appointmentModel from '../models/appointmentModel.js';
 import doctorModel from '../models/doctorModel.js';
 
 const startCleanupJob = () => {
-    // Chạy mỗi 1 phút
     cron.schedule('* * * * *', async () => {
     
         try {
             const now = new Date();
-            const timeLimit = new Date(now.getTime() - 5 * 60 * 1000); // 5 phút trước
+            const timeLimit = new Date(now.getTime() - 5 * 60 * 1000); 
 
             const query = {
                 createdAt: { $lt: timeLimit }, 
@@ -48,7 +47,7 @@ const startCleanupJob = () => {
             // Cập nhật trạng thái Hủy
             await appointmentModel.updateMany(
                 { _id: { $in: staleAppointments.map(a => a._id) } },
-                { cancelled: true } // Có thể thêm field cancelReason: "Payment timeout"
+                { cancelled: true } 
             );
 
             console.log('✅ Đã hủy xong các lịch chưa thanh toán!');

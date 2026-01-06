@@ -9,6 +9,7 @@ import specialityModel from '../models/specialityModel.js'
 import nodemailer from 'nodemailer'
 import { OAuth2Client } from "google-auth-library"
 import transactionModel from '../models/transactionModel.js';
+import sendLoginNotification from '../helpers/sendLoginNotification.js';
 // API to resgiter user
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const resgiterUser = async (req, res) => {
@@ -98,6 +99,55 @@ const loginUser = async (req, res) => {
         res.json({ success: false, message: error.message })
     }
 };
+const changePassword = async (req, res) => {
+    try {
+        const { userId, oldPassword, newPassword } = req.body;
+
+        // 1. Tìm user trong DB
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.json({ success: false, message: "Người dùng không tồn tại" });
+        }
+
+        // 2. LOGIC KIỂM TRA MẬT KHẨU CŨ
+        // Chỉ kiểm tra mật khẩu cũ nếu tài khoản này KHÔNG PHẢI đăng nhập bằng Google
+        // (Tức là: user thường thì bắt check, user Google thì bỏ qua)
+        if (!user.isGoogleLogin) {
+            if (!oldPassword) {
+                return res.json({ success: false, message: "Vui lòng nhập mật khẩu hiện tại" });
+            }
+
+            const isMatch = await bcrypt.compare(oldPassword, user.password);
+            if (!isMatch) {
+                return res.json({ success: false, message: "Mật khẩu cũ không chính xác" });
+            }
+        }
+
+        // 3. Kiểm tra độ dài mật khẩu mới
+        if (newPassword.length < 6) {
+            return res.json({ success: false, message: "Mật khẩu mới phải có ít nhất 6 ký tự" });
+        }
+
+        // 4. Mã hóa mật khẩu mới
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // 5. Cập nhật vào DB
+        user.password = hashedPassword;
+        
+        // (Tùy chọn) Sau khi user Google đã đặt mật khẩu, bạn có thể coi họ như user thường
+        // bằng cách bỏ comment dòng dưới (lúc này lần sau đổi pass họ SẼ PHẢI nhập pass cũ)
+        user.isGoogleLogin = false; 
+
+        await user.save();
+
+        res.json({ success: true, message: "Cập nhật mật khẩu thành công!" });
+
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+}
 //API to get user profile data
 const getProfile = async (req, res) => {
     try {
@@ -299,7 +349,7 @@ const verifyPaymentWebhook = async (req, res) => {
         const contentIn = data.transferContent || data.content || data.description || "";
         const transactionCode = data.id || data.code || ""; // Mã giao dịch ngân hàng
 
-        // 2. Logic trích xuất ID từ nội dung chuyển khoản (QUAN TRỌNG)
+        // Logic trích xuất ID từ nội dung chuyển khoản (QUAN TRỌNG)
         // MongoDB ID là chuỗi 24 ký tự gồm số và chữ cái a-f
         const idRegex = /[a-fA-F0-9]{24}/; 
         const match = contentIn.toString().match(idRegex);
@@ -322,7 +372,7 @@ const verifyPaymentWebhook = async (req, res) => {
             return res.json({ success: true, message: "Không tìm thấy mã đơn hàng trong nội dung" });
         }
 
-        // 4. Tìm đơn hàng đích danh (Thay vì vòng lặp)
+        
         const appointment = await appointmentModel.findById(appointmentId);
 
         if (appointment) {
@@ -332,13 +382,13 @@ const verifyPaymentWebhook = async (req, res) => {
 
             console.log(`=> Tìm thấy đơn: ${appointment._id} - Cần: ${appointment.amount} - Nhận: ${amountIn}`);
 
-            // 5. So sánh tiền
+            // So sánh tiền
             if (Number(amountIn) >= Number(appointment.amount)) {
                 
                 await appointmentModel.findByIdAndUpdate(appointmentId, { 
                     payment: true,
                     isApproved: true, 
-                    paymentMethod: 'Chuyển khoản Online' // Lưu thêm phương thức nếu cần
+                    paymentMethod: 'Chuyển khoản Online' 
                 });
 
                 console.log("=> CẬP NHẬT THÀNH CÔNG!");
@@ -402,7 +452,7 @@ const googleLogin = async (req, res) => {
     try {
         const { googleToken } = req.body;
 
-        // 1. Xác thực token với Google
+        // Xác thực token với Google
         const ticket = await client.verifyIdToken({
             idToken: googleToken,
             audience: process.env.GOOGLE_CLIENT_ID, 
@@ -410,13 +460,10 @@ const googleLogin = async (req, res) => {
 
         const { name, email, picture } = ticket.getPayload();
 
-        // --- SỬA Ở ĐÂY: Tìm user trong DB trước ---
+        
         let user = await userModel.findOne({ email });
 
         if (user) {
-            // 2. User đã tồn tại -> Kiểm tra các cờ trạng thái
-            
-            // Kiểm tra bị xóa (QUAN TRỌNG)
             if (user.isDeleted) {
                 return res.json({ 
                     success: false, 
@@ -424,29 +471,30 @@ const googleLogin = async (req, res) => {
                 });
             }
 
-            // Kiểm tra bị khóa (Optional)
             if (user.isBlocked) {
                 return res.json({ 
                     success: false, 
                     message: "Tài khoản Google này đã bị khóa!" 
                 });
             }
-
-            // Mọi thứ ok -> Cấp token
+            sendLoginNotification(email, name);
             const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
             res.json({ success: true, token });
 
         } else {
-            // 3. User chưa tồn tại -> Tạo mới
+            // User chưa tồn tại -> Tạo mới
             // (User mới tạo thì mặc định sạch, không cần check isDeleted)
             const newUser = new userModel({
                 name,
                 email,
+                username: email,
                 image: picture, 
-                password: Date.now().toString(), // Mật khẩu ngẫu nhiên
+                password: Date.now().toString(), 
+                isGoogleLogin: true,
             });
 
             const savedUser = await newUser.save();
+            sendLoginNotification(email, name);
             const token = jwt.sign({ id: savedUser._id }, process.env.JWT_SECRET);
             res.json({ success: true, token });
         }
@@ -457,7 +505,7 @@ const googleLogin = async (req, res) => {
     }
 }
 const transporter = nodemailer.createTransport({
-    service: 'gmail', // Hoặc 'smtp-relay.brevo.com' tùy bạn
+    service: 'gmail', 
     auth: {
         user: process.env.MAIL_USER, 
         pass: process.env.MAIL_PASS  
@@ -534,7 +582,7 @@ const resetPassword = async (req, res) => {
             return res.json({ success: false, message: "Mã OTP đã hết hạn!" });
         }
 
-        // Kiểm tra độ mạnh mật khẩu mới
+        
         if (newPassword.length < 8) {
              return res.json({ success: false, message: "Mật khẩu mới phải có ít nhất 8 ký tự!" });
         }
@@ -556,7 +604,7 @@ const resetPassword = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 }
-export { resgiterUser, loginUser, getProfile, updateProfile, bookAppointment,
+export { resgiterUser, loginUser, changePassword, getProfile, updateProfile, bookAppointment,
      listAppointment, cancelAppointment, getAllSpecialities, checkPaymentStatus,
       verifyPaymentWebhook, sendContactEmail, googleLogin, sendResetOtp, resetPassword
      };

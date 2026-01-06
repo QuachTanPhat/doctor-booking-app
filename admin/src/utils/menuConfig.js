@@ -18,7 +18,7 @@ export const adminMenu = [
   },
   {
     path: '/all-appointments',
-    label: 'Cuộc hẹn',
+    label: 'Quản lí lịch hẹn',
     icon: assets.appointment_icon
   },
   

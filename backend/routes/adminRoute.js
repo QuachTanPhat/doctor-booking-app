@@ -12,6 +12,7 @@ import {
     updateDoctor, 
     deleteDoctor, 
     addDoctorSchedule,
+    changeDoctorBlockStatus,
     // Appointment Controllers
     appointmentsAdmin, 
     appointmentApprove, 
@@ -50,6 +51,7 @@ adminRouter.post('/delete-doctor', authAdmin, deleteDoctor)
 adminRouter.post('/all-doctors', authAdmin, allDoctors)
 adminRouter.post('/change-availability', authAdmin, changeAvailability)
 adminRouter.post('/add-schedule', authAdmin, addDoctorSchedule)
+adminRouter.post('/change-doctor-block', authAdmin, changeDoctorBlockStatus);
 // 5. APPOINTMENT MANAGEMENT (Quản lý Lịch hẹn)
 adminRouter.get('/appointments', authAdmin, appointmentsAdmin)          
 adminRouter.post('/approve-appointment', authAdmin, appointmentApprove) 

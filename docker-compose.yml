@@ -6,9 +6,9 @@ services:
     build: ./backend
     container_name: prescripto-backend
     ports:
-      - "4000:4000" # Map port 4000 máy thật vào 4000 container
+      - "4000:4000" 
     env_file:
-      - ./backend/.env # Load biến môi trường từ file .env cũ của bạn
+      - ./backend/.env 
     environment:
       - PORT=4000
     restart: always
@@ -18,10 +18,20 @@ services:
     build: ./frontend
     container_name: prescripto-frontend
     ports:
-      - "5173:5173" # Map port 5173 máy thật vào 5173 container
+      - "5173:5173"
     depends_on:
-      - backend # Frontend sẽ đợi Backend khởi tạo
+      - backend 
     environment:
-      # Nếu bạn dùng Vite, biến môi trường phải bắt đầu bằng VITE_
+      
       - VITE_BACKEND_URL=http://localhost:4000 
+    restart: always
+  admin:
+    build: ./admin  
+    container_name: prescripto-admin
+    ports:
+      - "5174:5174" 
+    depends_on:
+      - backend
+    environment:
+      - VITE_BACKEND_URL=http://localhost:4000
     restart: always

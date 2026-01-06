@@ -38,20 +38,38 @@ const loginDoctor = async (req, res) => {
         const { email, password } = req.body
         const doctor = await doctorModel.findOne({ email })
 
+        // 1. Kiểm tra email có tồn tại không
         if (!doctor) {
             return res.json({ success: false, message: 'Thông tin đăng nhập không chính xác' })
         }
 
+        // --- BỔ SUNG LOGIC KIỂM TRA TRẠNG THÁI ---
+        
+        // 2. Kiểm tra nếu tài khoản đã bị Xóa (Soft Delete)
+        if (doctor.isDeleted) {
+            return res.json({ 
+                success: false, 
+                message: 'Tài khoản này không tồn tại hoặc đã bị xóa khỏi hệ thống.' 
+            })
+        }
+
+        // 3. Kiểm tra nếu tài khoản đang bị Khóa (Block)
+        if (doctor.isBlocked) {
+            return res.json({ 
+                success: false, 
+                message: 'Tài khoản bác sĩ của bạn đã bị khóa. Vui lòng liên hệ Admin.' 
+            })
+        }
         const isMatch = await bcrypt.compare(password, doctor.password)
 
         if (isMatch) {
             const token = jwt.sign({ id: doctor._id }, process.env.JWT_SECRET)
             res.json({ success: true, token })
-
         }
         else {
             res.json({ success: false, message: 'Thông tin đăng nhập không chính xác' })
         }
+
     } catch (error) {
         console.log(error)
         res.json({ success: false, message: error.message })

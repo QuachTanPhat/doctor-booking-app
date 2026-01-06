@@ -710,12 +710,49 @@ const changeUserStatus = async (req, res) => {
         res.json({ success: false, message: error.message })
     }
 }
+const changeDoctorBlockStatus = async (req, res) => {
+    try {
+        const { docId } = req.body;
 
+        const doctor = await doctorModel.findById(docId);
+        if (!doctor) {
+            return res.json({ success: false, message: "Bác sĩ không tồn tại" });
+        }
+
+        // Đảo ngược trạng thái (Nếu đang mở thì khoá, đang khoá thì mở)
+        // Hoặc bạn có thể truyền thẳng status từ frontend nếu muốn tường minh
+        doctor.isBlocked = !doctor.isBlocked; 
+        
+        // Nếu chuyển sang trạng thái available cũng nên tắt luôn khi bị block
+        if (doctor.isBlocked) {
+            doctor.available = false; 
+        }
+
+        await doctor.save();
+
+        // --- SOCKET IO: ĐÁ VĂNG BÁC SĨ RA NGAY LẬP TỨC ---
+        if (doctor.isBlocked && req.io) {
+            // Gửi sự kiện force-logout kèm theo userId là docId
+            req.io.emit('force-logout', { userId: docId, type: 'doctor' });
+            req.io.emit('doctor-updated'); // Cập nhật lại list bên Admin
+        }
+        // --------------------------------------------------
+
+        res.json({ 
+            success: true, 
+            message: doctor.isBlocked ? "Đã khóa tài khoản bác sĩ" : "Đã mở khóa tài khoản bác sĩ" 
+        });
+
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+}
 export {
     addDoctor, loginAdmin, allDoctors, appointmentsAdmin,
     appointmentCancel, adminDashboard, deleteDoctor, updateDoctor,
     getAllSpecialities, updateSpeciality, addSpeciality, deleteSpeciality,
     addDoctorSchedule, appointmentComplete,
     appointmentDelete, deleteUser,
-    appointmentApprove, allUsers, changeUserStatus
+    appointmentApprove, allUsers, changeUserStatus,changeDoctorBlockStatus
 }
