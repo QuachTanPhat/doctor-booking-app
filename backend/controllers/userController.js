@@ -416,10 +416,12 @@ const sendContactEmail = async (req, res) => {
     try {
         const { name, email, phone, subject, message } = req.body;
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true,
             auth: {
-                user: process.env.MAIL_USER, 
-                pass: process.env.MAIL_PASS  
+                user: process.env.MAIL_USER,
+                pass: process.env.MAIL_PASS
             }
         });
         const mailOptions = {
@@ -505,10 +507,12 @@ const googleLogin = async (req, res) => {
     }
 }
 const transporter = nodemailer.createTransport({
-    service: 'gmail', 
+    host: "smtp.gmail.com", 
+    port: 465,              
+    secure: true,          
     auth: {
-        user: process.env.MAIL_USER, 
-        pass: process.env.MAIL_PASS  
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS
     }
 });
 

@@ -1,11 +1,10 @@
 import nodemailer from 'nodemailer';
 
-// Hàm này nhận vào email và tên của người vừa đăng nhập
 const sendLoginNotification = async (userEmail, userName) => {
     try {
         console.log("--> Đang bắt đầu quá trình gửi mail cho:", userEmail); 
         console.log("User gửi:", process.env.MAIL_USER);
-        // 1. Cấu hình Transporter (Y hệt code cũ của bạn)
+        
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
@@ -14,10 +13,9 @@ const sendLoginNotification = async (userEmail, userName) => {
             }
         });
 
-        // 2. Cấu hình nội dung mail (Thay đổi phần này)
         const mailOptions = {
-            from: `"Prescripto Security" <${process.env.MAIL_USER}>`, // Tên người gửi cho sang
-            to: userEmail, // <--- QUAN TRỌNG: Gửi cho người dùng, ko phải admin
+            from: `"Prescripto Security" <${process.env.MAIL_USER}>`, 
+            to: userEmail, 
             subject: `[Cảnh báo bảo mật] Đăng nhập mới từ tài khoản ${userName}`,
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
@@ -39,12 +37,10 @@ const sendLoginNotification = async (userEmail, userName) => {
             `
         };
 
-        // 3. Gửi mail
         await transporter.sendMail(mailOptions);
         console.log(`Đã gửi mail thông báo login cho: ${userEmail}`);
 
     } catch (error) {
-        // Chỉ log lỗi ra console server, KHÔNG return lỗi ra ngoài để tránh chặn user đăng nhập
         console.log("Lỗi gửi mail login:", error.message);
     }
 }

@@ -5,7 +5,7 @@ import { AppContext } from '../../context/AppContext';
 
 const DoctorsList = () => {
   // 1. Lấy đủ các hàm từ Context
-  const { doctors, aToken, getAllDoctors, changeAvailability, deleteDoctor, changeDoctorBlock } = useContext(AdminContext);
+  const { doctors, aToken, getAllDoctors, changeAvailability, deleteDoctor, changeBlockStatus } = useContext(AdminContext);
   const { currency } = useContext(AppContext)
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -137,11 +137,11 @@ const DoctorsList = () => {
               {/* Nút Block/Active */}
               <div className='flex justify-center'>
                  {item.isBlocked ? (
-                      <button onClick={() => changeDoctorBlock(item._id)} className='px-3 py-1 bg-red-100 text-red-600 rounded-full text-xs font-medium border border-red-200 hover:bg-red-200 transition-colors w-24'>
+                      <button onClick={() => changeBlockStatus(item._id)} className='px-3 py-1 bg-red-100 text-red-600 rounded-full text-xs font-medium border border-red-200 hover:bg-red-200 transition-colors w-24'>
                          Đã khoá
                       </button>
                   ) : (
-                      <button onClick={() => changeDoctorBlock(item._id)} className='px-3 py-1 bg-green-100 text-green-600 rounded-full text-xs font-medium border border-green-200 hover:bg-green-200 transition-colors w-24'>
+                      <button onClick={() => changeBlockStatus(item._id)} className='px-3 py-1 bg-green-100 text-green-600 rounded-full text-xs font-medium border border-green-200 hover:bg-green-200 transition-colors w-24'>
                          Hoạt động
                       </button>
                   )}

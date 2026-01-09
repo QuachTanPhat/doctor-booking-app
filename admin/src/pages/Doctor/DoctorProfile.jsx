@@ -128,7 +128,6 @@ const DoctorProfile = () => {
                                         min="0"
                                         placeholder="Số năm"
                                         className='bg-gray-50 border rounded px-2 py-1 text-sm outline-primary w-20'
-                                        // Logic: Lấy số từ chuỗi "X Năm" để hiển thị (Xóa chữ ' Năm' đi để hiện số)
                                         value={profileData.experience.toString().replace(/[^0-9]/g, '')}
                                         // Logic: Khi nhập số, tự động ghép thêm chữ " Năm" vào state
                                         onChange={(e) => setProfileData(prev => ({ ...prev, experience: e.target.value + " Năm" }))}

@@ -145,7 +145,6 @@ const Appointments = () => {
   useEffect(() => { fetchDocInfo() }, [doctors, docId])
   useEffect(() => { if (docInfo) getAvailableSlots() }, [docInfo, startDate])
 
-  // --- FILTER AN TOÀN ---
   const filterSlots = (slots) => {
     if (!slots) return { sang: [], chieu: [], toi: [] };
     
@@ -188,6 +187,11 @@ const Appointments = () => {
           <div className='flex items-center gap-2 text-sm mt-1 text-gray-600'>
             <p>{docInfo.degree} - {docInfo.speciality}</p>
             <button className='py-0.5 px-2 border text-xs rounded-full'>Kinh nghiệm: {docInfo.experience}</button>
+          </div>
+          <div>
+            <p className='flex items-center gap-1 text-sm font-medium text-gray-900 mt-3'>Địa chỉ <img src={assets.info_icon} alt="" /></p>
+            <p className='text-sm text-gray-500 max-w-[700px] mt-1'> {docInfo.address.line1}</p>
+            <p className='text-sm text-gray-500 max-w-[700px] mt-1'> {docInfo.address.line2}</p>
           </div>
           <div>
             <p className='flex items-center gap-1 text-sm font-medium text-gray-900 mt-3'>Giới thiệu <img src={assets.info_icon} alt="" /></p>

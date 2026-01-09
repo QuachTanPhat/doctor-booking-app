@@ -11,19 +11,22 @@ services:
       - ./backend/.env 
     environment:
       - PORT=4000
+      - TZ=Asia/Ho_Chi_Minh
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     restart: always
-
-  # --- CẤU HÌNH FRONTEND ---
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_BACKEND_URL: http://localhost:4000
+        VITE_GOOGLE_CLIENT_ID: 206117680988-admffno6igjo1hd3d594scsnrl4d7s54.apps.googleusercontent.com
+        VITE_SEPAY_ACCOUNT: VQRQAFVUO6330
+        VITE_SEPAY_BANK: MBBank
     container_name: prescripto-frontend
     ports:
       - "5173:5173"
-    depends_on:
-      - backend 
-    environment:
-      
-      - VITE_BACKEND_URL=http://localhost:4000 
     restart: always
   admin:
     build: ./admin  
