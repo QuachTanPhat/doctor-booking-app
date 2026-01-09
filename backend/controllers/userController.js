@@ -521,6 +521,7 @@ const sendResetOtp = async (req, res) => {
     try {
         const { email } = req.body;
 
+        console.log("--> ĐANG DÙNG CẤU HÌNH: ", transporter.options.port);
         const user = await userModel.findOne({ email });
         if (!user) {
             return res.json({ success: false, message: "Email không tồn tại trong hệ thống!" });
