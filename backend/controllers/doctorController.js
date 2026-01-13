@@ -26,7 +26,8 @@ const changeAvailability = async (req, res) => {
             const pendingAppointments = await appointmentModel.find({
                 docId: docId,
                 cancelled: false,
-                isCompleted: false
+                isCompleted: false,
+                isApproved: false
             });
 
             if (pendingAppointments.length > 0) {
@@ -384,6 +385,7 @@ const updateDoctorProfile = async (req, res) => {
             return res.json({ success: false, message: "Thiếu thông tin" })
         }
 
+        const isAvailable = available === 'true' || available === true;
         // 2. Tạo object chứa toàn bộ dữ liệu cần update
         // (Làm như này để gom tất cả thay đổi vào 1 biến duy nhất)
         const updateData = {
@@ -405,6 +407,43 @@ const updateDoctorProfile = async (req, res) => {
         // 4. Cập nhật vào Database (Chỉ gọi lệnh update 1 lần duy nhất)
         await doctorModel.findByIdAndUpdate(docId, updateData)
 
+        if (isAvailable === false) {
+            console.log(`⚠️ Bác sĩ ${name} cập nhật hồ sơ sang NGHỈ -> Quét lịch để hủy...`);
+
+            // Tìm các lịch chưa hoàn thành
+            const pendingAppointments = await appointmentModel.find({
+                docId: docId,
+                cancelled: false,
+                isCompleted: false,
+                isApproved: false
+            });
+
+            if (pendingAppointments.length > 0) {
+                // Duyệt từng đơn
+                for (const appt of pendingAppointments) {
+                    // a. Tìm thông tin bệnh nhân để gửi mail
+                    const user = await userModel.findById(appt.userId);
+                    
+                    if (user) {
+                        // Gửi mail báo hủy
+                        sendCancellationEmail(user.email, user.name, name, appt.slotDate, appt.slotTime);
+                    }
+
+                    // b. Gỡ slot khỏi lịch bác sĩ (Dùng $pull để xóa chính xác)
+                    await doctorModel.findByIdAndUpdate(docId, {
+                        $pull: { [`slots_booked.${appt.slotDate}`]: appt.slotTime }
+                    });
+                }
+
+                // c. Đổi trạng thái tất cả đơn tìm thấy sang Cancelled
+                await appointmentModel.updateMany(
+                    { docId: docId, cancelled: false, isCompleted: false },
+                    { cancelled: true }
+                );
+
+                console.log(`✅ [Doctor Update] Đã hủy và gửi mail cho ${pendingAppointments.length} bệnh nhân.`);
+            }
+        }
         // 5. Gửi thông báo socket (nếu có dùng realtime)
         if (req.io) {
             req.io.emit('doctor-update');

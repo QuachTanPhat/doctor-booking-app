@@ -10,7 +10,6 @@ const createTransporter = () => {
     });
 };
 
-// --- HÀM 1: Gửi mail thông báo Login ---
 const sendLoginNotification = async (userEmail, userName) => {
     try {
         console.log("--> [Mail Login] Đang gửi cho:", userEmail);

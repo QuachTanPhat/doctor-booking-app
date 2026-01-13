@@ -21,14 +21,12 @@ const DoctorsList = () => {
     if (aToken) getAllDoctors();
   }, [aToken]);
 
-  // --- 2. ĐÂY LÀ HÀM BẠN ĐANG BỊ THIẾU (FORMAT DATE) ---
   const formatDate = (isoString) => {
     if (!isoString) return '--';
     const date = new Date(isoString);
     return date.toLocaleTimeString('vi-VN', { hour12: false }) + ' ' + date.toLocaleDateString('vi-VN');
   }
-  // -----------------------------------------------------
-
+  
   const handleDelete = (id) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa bác sĩ này không?")) {
       deleteDoctor(id);
