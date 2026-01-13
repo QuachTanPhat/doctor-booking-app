@@ -161,11 +161,11 @@ const Contact = () => {
                         <div className='space-y-3 text-sm text-gray-600'>
                             <div className='flex justify-between border-b pb-2 border-gray-50'>
                                 <span>Thứ 2 - Thứ 6</span>
-                                <span className='font-medium'>10:00 - 20:00</span>
+                                <span className='font-medium'> 8:00 - 20:00</span>
                             </div>
                             <div className='flex justify-between border-b pb-2 border-gray-50'>
                                 <span>Thứ 7</span>
-                                <span className='font-medium'>08:00 - 12:00</span>
+                                <span className='font-medium'> 8:00 - 14:00</span>
                             </div>
                             <div className='flex justify-between pt-2'>
                                 <span className='text-gray-800 font-medium'>Chủ Nhật</span>

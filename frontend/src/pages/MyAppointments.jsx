@@ -14,6 +14,37 @@ const MyAppointments = () => {
   const SEPAY_ACCOUNT = import.meta.env.VITE_SEPAY_ACCOUNT;
   const SEPAY_BANK = import.meta.env.VITE_SEPAY_BANK;
 
+  // --- 1. POLLING: Tự động tải lại dữ liệu mỗi 5 giây ---
+  useEffect(() => {
+    if (token) {
+        // Gọi ngay lần đầu
+        getUserAppointments();
+
+        // Thiết lập gọi định kỳ
+        const intervalId = setInterval(() => {
+            // console.log("🔄 Đang cập nhật dữ liệu..."); // Debug
+            getUserAppointments(); 
+        }, 5000); // 5000ms = 5 giây
+
+        // Dọn dẹp khi component bị hủy (rời trang)
+        return () => clearInterval(intervalId);
+    }
+  }, [token]);
+
+  // --- 2. Logic tự động đóng Popup nếu đơn bị hủy ---
+  useEffect(() => {
+    if (paymentOrderId && appointments.length > 0) {
+        const currentOrder = appointments.find(app => app._id === paymentOrderId);
+        
+        // Nếu đơn hàng đang mở thanh toán bỗng nhiên bị Hủy hoặc Đã xong
+        if (currentOrder && (currentOrder.cancelled || currentOrder.isCompleted || currentOrder.payment)) {
+            closePaymentPopup();
+            if (currentOrder.cancelled) toast.error("Đơn hàng đã bị hủy do quá hạn!");
+            if (currentOrder.payment) toast.success("Đơn hàng đã được thanh toán!");
+        }
+    }
+  }, [appointments]); // Theo dõi sự thay đổi của danh sách đơn
+
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -42,6 +73,19 @@ const MyAppointments = () => {
   };
 
   const handlePayClick = (item) => {
+    // --- Kiểm tra chặn trước khi mở Popup ---
+    if (item.cancelled) {
+        toast.error("Lịch hẹn này đã bị hủy!");
+        getUserAppointments();
+        return;
+    }
+    
+    if (item.payment) {
+        toast.info("Lịch hẹn này đã được thanh toán!");
+        getUserAppointments();
+        return;
+    }
+
     const savedSession = localStorage.getItem(`payment_session_${item._id}`);
     let expireTime;
     const now = Date.now();
@@ -72,6 +116,7 @@ const MyAppointments = () => {
     localStorage.removeItem("current_active_payment_id");
   };
 
+  // Logic giữ Popup khi F5 (giữ nguyên code cũ của bạn)
   useEffect(() => {
     if (appointments.length > 0) {
       const activeId = localStorage.getItem("current_active_payment_id");
@@ -95,6 +140,7 @@ const MyAppointments = () => {
     }
   }, [appointments]);
 
+  // Logic đếm ngược thời gian và check payment thủ công (giữ nguyên)
   useEffect(() => {
     let intervalId;
     let timerId;
@@ -102,6 +148,7 @@ const MyAppointments = () => {
     if (paymentOrderId) {
       intervalId = setInterval(async () => {
         try {
+          // Vẫn giữ check thủ công này để phản hồi nhanh hơn Polling chung
           const { data } = await axios.post(backendUrl + "/api/user/check-payment-status", { appointmentId: paymentOrderId }, { headers: { token } });
           if (data.success && data.paid) {
             clearInterval(intervalId);
@@ -144,11 +191,6 @@ const MyAppointments = () => {
     };
   }, [paymentOrderId, backendUrl, token]);
 
-  useEffect(() => {
-    if (token) {
-      getUserAppointments();
-    }
-  }, [token]);
 
   return (
     <div>
@@ -213,9 +255,6 @@ const MyAppointments = () => {
             <div className="flex-1 text-sm text-zinc-600">
               <p className="text-neutral-800 font-semibold">{item.docData.name}</p>
               <p>{item.docData.speciality}</p>
-              {/* <p className="text-zinc-700 font-medium mt-1">Địa chỉ:</p>
-              <p className="text-xs">{item.docData.address.line1}</p>
-              <p className="text-xs">{item.docData.address.line2}</p> */}
               <p className="text-xs mt-1">
                 <span className="text-sm text-neutral-700 font-medium">Thời gian:</span> {slotDateFormat(item.slotDate)} | {item.slotTime}
               </p>
@@ -237,7 +276,7 @@ const MyAppointments = () => {
                 </button>
               )}
 
-              {/* --- CÁC TRẠNG THÁI TRUNG GIAN (Chỉ hiện khi CHƯA Hủy và CHƯA Hoàn thành) --- */}
+              {/* --- CÁC TRẠNG THÁI TRUNG GIAN --- */}
               {!item.cancelled && !item.isCompleted && (
                 <>
                   {/* TRƯỜNG HỢP 1: ONLINE */}
@@ -269,16 +308,14 @@ const MyAppointments = () => {
                     </button>
                   )}
 
-                  {/* TRƯỜNG HỢP 3: ĐÃ ĐƯỢC DUYỆT (Chung cho cả 2 loại) */}
-                  {/* Logic: Đã duyệt + Chưa hoàn thành -> Hiện "Đã được xác nhận" */}
+                  {/* TRƯỜNG HỢP 3: ĐÃ ĐƯỢC DUYỆT */}
                   {item.isApproved && (
                     <button className='text-sm sm:min-w-48 py-2 border rounded bg-green-100 text-green-700 font-medium cursor-default border-green-200'>
                       Đã được xác nhận ✅
                     </button>
                   )}
 
-                  {/* NÚT HỦY (Chỉ hiện khi chưa thanh toán xong và chưa hoàn thành) */}
-                  {/* Lưu ý: Nếu Online đã trả tiền rồi thì không cho hủy nữa (hoặc tùy chính sách) */}
+                  {/* NÚT HỦY */}
                   {!item.isApproved && !item.payment && (
                     <button
                       onClick={() => cancelAppointment(item._id)}

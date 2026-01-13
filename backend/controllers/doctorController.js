@@ -2,22 +2,71 @@ import doctorModel from "../models/doctorModel.js"
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import appointmentModel from '../models/appointmentModel.js'
+import userModel from "../models/userModel.js";
 import { v2 as cloudinary } from "cloudinary";
+import {sendCancellationEmail}  from "../helpers/sendLoginNotification.js";
 const changeAvailability = async (req, res) => {
     try {
+        const { docId } = req.body;
+        
+        // Lấy thông tin hiện tại
+        const docData = await doctorModel.findById(docId);
+        
+        // Đảo ngược trạng thái
+        const newAvailability = !docData.available;
 
-        const { docId } = req.body
-        const io = req.app.get('socketio');
-        const docData = await doctorModel.findById(docId)
-        await doctorModel.findByIdAndUpdate(docId, { available: !docData.available })
-        if (req.io) {
-            req.io.emit('update-availability', { docId });
+        // Cập nhật Database
+        await doctorModel.findByIdAndUpdate(docId, { available: newAvailability });
+
+        // --- XỬ LÝ KHI BÁC SĨ NGHỈ (newAvailability === false) ---
+        if (newAvailability === false) {
+            console.log(`⚠️ Bác sĩ ${docData.name} nghỉ -> Quét lịch để hủy...`);
+
+            // Tìm các lịch chưa hoàn thành
+            const pendingAppointments = await appointmentModel.find({
+                docId: docId,
+                cancelled: false,
+                isCompleted: false
+            });
+
+            if (pendingAppointments.length > 0) {
+                // Duyệt từng đơn
+                for (const appt of pendingAppointments) {
+                    // a. Tìm thông tin bệnh nhân
+                    const user = await userModel.findById(appt.userId);
+                    
+                    if (user) {
+                        // Gửi mail báo hủy cho bệnh nhân
+                        sendCancellationEmail(user.email, user.name, docData.name, appt.slotDate, appt.slotTime);
+                    }
+
+                    // b. Gỡ slot khỏi lịch bác sĩ
+                    await doctorModel.findByIdAndUpdate(docId, {
+                        $pull: { [`slots_booked.${appt.slotDate}`]: appt.slotTime }
+                    });
+                }
+
+                // c. Cập nhật trạng thái 'cancelled' hàng loạt
+                await appointmentModel.updateMany(
+                    { docId: docId, cancelled: false, isCompleted: false },
+                    { cancelled: true }
+                );
+
+                console.log(`✅ Đã hủy ${pendingAppointments.length} đơn của bác sĩ.`);
+            }
         }
-        res.json({ success: true, message: 'Trạng thái đã được thay đổi thành công' })
+
+        // --- SOCKET IO ---
+        const io = req.io || req.app.get('socketio'); 
+        if (io) {
+            io.emit('update-availability', { docId });
+        }
+
+        res.json({ success: true, message: 'Trạng thái đã được thay đổi thành công' });
 
     } catch (error) {
-        console.log(error)
-        res.json({ success: false, message: error.message })
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
 }
 

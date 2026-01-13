@@ -37,7 +37,6 @@ const App = () => {
           <Route path='/doctors-list' element={<DoctorsList/>}/>
           <Route path='/doctor-schedule' element={<DoctorSchedule/>}/>
           <Route path='/faq-list' element={<FaqList />} />
-          {/* --- THÊM DÒNG NÀY ĐỂ HIỆN TRANG QUẢN LÝ NGƯỜI DÙNG --- */}
           <Route path='/all-users' element={<AllUsers />} />
           {/* Doctor Route */}
           <Route path='/doctor-dashboard' element={<DoctorDashboard/>}/>

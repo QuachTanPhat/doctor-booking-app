@@ -27,7 +27,7 @@ const startCleanupJob = () => {
                 cancelled: false,
                 isCompleted: false,
                 isApproved: false, 
-                payment: false 
+                payment: false,
             };
 
             // Tìm các lịch bị treo
