@@ -25,5 +25,6 @@ Hệ thống đặt lịch khám bệnh trực tuyến kết nối Bệnh nhân 
 Dự án đã được đóng gói container, bạn có thể chạy toàn bộ hệ thống (Frontend, Backend, Database) chỉ với vài thao tác.
 1. Clone repo:
    ```bash
-   https://github.com/QuachTanPhat/doctor-booking-app
-2. Chạy dự án: docker-compose up --build
+   git clone https://github.com/QuachTanPhat/doctor-booking-app.git
+2. Tạo file .env để kết nối Database
+3. Chạy dự án: docker-compose up --build
